@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-05-28
+
+### Changed
+
+- Default production base URL is now `https://app.pacspace.io`, the single consolidated app/API origin (see ADR 0004). The previous `https://api.pacspace.io` host is being retired and is not maintained as a long-term default; pass `production_url` to target a custom host.
+- User-Agent header bumped to `pacspace-sdk-python/0.2.0`.
 
 ### Added
 

@@ -18,7 +18,7 @@ from .errors import (
 )
 
 DEFAULT_SANDBOX_URL = "https://api-sandbox-wnizuypena-uw.a.run.app"
-DEFAULT_PRODUCTION_URL = "https://api.pacspace.io"
+DEFAULT_PRODUCTION_URL = "https://app.pacspace.io"
 DEFAULT_TIMEOUT_MS = 30_000
 DEFAULT_MAX_RETRIES = 2
 
@@ -211,7 +211,7 @@ class HttpClient:
     ) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "pacspace-sdk-python/0.1.2",
+            "User-Agent": "pacspace-sdk-python/0.2.0",
         }
         if authenticated:
             headers["X-Api-Key"] = self._api_key

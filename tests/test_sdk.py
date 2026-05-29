@@ -169,7 +169,7 @@ class BalanceFlowsTest(unittest.TestCase):
                     "customerId": "cust_1",
                     "period": "2026-04",
                     "proofRoot": "0xproof",
-                    "verificationApiUrl": "https://api.pacspace.io/api/v1/verify/0xproof",
+                    "verificationApiUrl": "https://app.pacspace.io/api/v1/verify/0xproof",
                     "verifyUrl": "https://customer-links.pacspace.io/c/cus_abc123",
                     "accessHint": "A1B2C3",
                     "customerLinkUrl": "https://customer-links.pacspace.io/c/cus_abc123",
@@ -194,7 +194,7 @@ class BalanceFlowsTest(unittest.TestCase):
 
         self.assertEqual(
             shared_record["verificationApiUrl"],
-            "https://api.pacspace.io/api/v1/verify/0xproof",
+            "https://app.pacspace.io/api/v1/verify/0xproof",
         )
         self.assertEqual(shared_record["accessHint"], "A1B2C3")
         self.assertEqual(
