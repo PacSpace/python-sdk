@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 - 2026-09-21
+
+### Changed
+
+- The default sandbox URL is `https://app.pacspace.io`, the same host as production. The API routes each request by the environment of its key, so a `pk_test_` key on the default host reads and writes the sandbox data plane; a `pk_live_` key on a sandbox-only host is refused with `API_KEY_ENVIRONMENT_HOST_MISMATCH` (403). `sandbox_url` stays as a bring-your-own override for a private sandbox host. The `api-sandbox` host keeps serving; nothing that names it breaks. Sandbox traffic on the default host shares the production host's throttle tiers.
+- User-Agent header bumped to `pacspace-sdk-python/0.3.0`.
+
+### Added
+
+- Records: `records.emit(record=..., title=..., occurred_at=..., actor_id=..., payloads=[...], kind=None, amends=None, references=None)` writes an entry to a record (`machine-action-record` by default), `records.receipt(record, entry)` reads one entry's receipt, `records.history(record, from_entry=None, to_entry=None)` reads the record's history file, and `records.check(history, expect=None)` runs the check in your process. `fingerprint(...)` computes the payload reference (`sha-256`, `digest`, `byteLength`) an entry carries for a file. Landed in the repository on 2026-09-16 (Slice C5) and first published here.
+
+- `Webhooks.verify` accepts an `X-PacSpace-Signature` header that carries more than one `v1=<hex>` value, comma separated. For 24 hours after a signing-secret rotation with overlap, PacSpace signs each delivery with the current secret and the previous one; the event is genuine when any one value matches the secret you hold, and each comparison is constant time. A single-value header verifies exactly as before.
+- `balance.emit(..., {"adjusts": ...})` sends `adjusts` (`referenceId` or `recordId`) on `POST /api/v1/balance/delta`. `records.emit(..., amends=...)` already maps `entry` to wire `seq`; the README now shows both.
+
 ## 0.2.0 - 2026-05-28
 
 ### Changed

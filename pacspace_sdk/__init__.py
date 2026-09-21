@@ -1,4 +1,5 @@
 from .pacspace import PacSpace
+from .fingerprint import fingerprint
 from .errors import (
     PacSpaceError,
     InvalidApiKeyError,
@@ -18,6 +19,7 @@ from .webhooks.verify import Webhooks
 
 __all__ = [
     "PacSpace",
+    "fingerprint",
     "PacSpaceError",
     "InvalidApiKeyError",
     "InsufficientCreditsError",

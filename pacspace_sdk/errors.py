@@ -167,6 +167,9 @@ def map_api_error(
             return InvalidScopeCombinationError(message, request_path)
         if api_error.get("code") == "SCOPE_TOO_WIDE":
             return ScopeTooWideError(message, request_path)
+        code = api_error.get("code")
+        if isinstance(code, str) and code:
+            return PacSpaceError(message, status_code, code, request_path)
         return ValidationError(message, request_path)
     if status_code == 401:
         return InvalidApiKeyError(message, request_path)
@@ -195,4 +198,10 @@ def map_api_error(
             int(retry_after_seconds) if isinstance(retry_after_seconds, (int, float)) else None,
             request_path,
         )
-    return PacSpaceError(message, status_code, "API_ERROR", request_path)
+    code = api_error.get("code")
+    return PacSpaceError(
+        message,
+        status_code,
+        code if isinstance(code, str) and code else "API_ERROR",
+        request_path,
+    )

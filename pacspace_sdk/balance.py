@@ -128,11 +128,13 @@ class BalanceResource:
             body["referenceId"] = options["referenceId"]
         if "metadata" in options:
             body["metadata"] = options["metadata"]
+        if "adjusts" in options:
+            body["adjusts"] = options["adjusts"]
 
         request_options = {
             key: value
             for key, value in options.items()
-            if key not in {"referenceId", "metadata"}
+            if key not in {"referenceId", "metadata", "adjusts"}
         }
         response = self._client.post("/api/v1/balance/delta", body, request_options)
         return self._normalize_payload(response)

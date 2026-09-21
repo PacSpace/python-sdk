@@ -6,6 +6,7 @@ from urllib.parse import quote
 from .balance import BalanceResource
 from .client import ClientConfig, HttpClient
 from .customers import CustomersResource
+from .records import RecordsResource
 from .webhooks.verify import Webhooks
 
 _VERIFY_SOURCES = {"db", "chain", "both"}
@@ -50,6 +51,7 @@ class PacSpace:
         )
         self.balance = BalanceResource(self._client, submission_options=submission)
         self.customers = CustomersResource(self._client)
+        self.records = RecordsResource(self._client)
         self.webhooks = Webhooks(webhook_secret) if webhook_secret else None
 
     def close(self, reason: str = "SDK closed") -> None:

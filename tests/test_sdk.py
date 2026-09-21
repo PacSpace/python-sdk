@@ -15,6 +15,8 @@ from pacspace_sdk import (
     RateLimitError,
     ServiceUnavailableError,
     ScopeTooWideError,
+    WebhookVerificationError,
+    fingerprint,
 )
 from pacspace_sdk.submission import SubmissionCoordinator
 from pacspace_sdk.webhooks.verify import Webhooks
@@ -49,6 +51,40 @@ class BalanceFlowsTest(unittest.TestCase):
         payload = json.loads(self.transport.calls[0]["body"])
         self.assertEqual(payload["customerId"], "cust_1")
         self.assertEqual(payload["delta"], -5)
+
+    def test_emit_carries_adjusts_reference(self) -> None:
+        self.transport.queue(
+            status_code=201,
+            body={
+                "success": True,
+                "data": {"recordId": "rec_adj", "status": "QUEUED", "receiptId": "0xdef"},
+            },
+        )
+        self.sdk.balance.emit(
+            "cust_1",
+            -10,
+            "adjustment",
+            {"adjusts": {"referenceId": "inv_001"}},
+        )
+        payload = json.loads(self.transport.calls[0]["body"])
+        self.assertEqual(payload["adjusts"], {"referenceId": "inv_001"})
+
+    def test_emit_carries_adjusts_record_id(self) -> None:
+        self.transport.queue(
+            status_code=201,
+            body={
+                "success": True,
+                "data": {"recordId": "rec_adj", "status": "QUEUED", "receiptId": "0xdef"},
+            },
+        )
+        self.sdk.balance.emit(
+            "cust_1",
+            25,
+            "adjustment",
+            {"adjusts": {"recordId": "rec_orig"}},
+        )
+        payload = json.loads(self.transport.calls[0]["body"])
+        self.assertEqual(payload["adjusts"], {"recordId": "rec_orig"})
 
     def test_derive_compare_checkpoint_usage_flows(self) -> None:
         self.transport.queue(
@@ -221,6 +257,28 @@ class BalanceFlowsTest(unittest.TestCase):
         self.assertEqual(result["status"], "VERIFIED")
         self.assertEqual(len(self.transport.calls), 2)
 
+    def test_one_host_the_key_decides_the_environment(self) -> None:
+        for api_key in ("pk_test_demo", "pk_live_demo"):
+            transport = FakeTransport()
+            transport.queue(status_code=200, body={"verified": True, "proofRoot": "0xroot", "message": "ok"})
+            PacSpace.init(api_key, transport=transport).verify("0xroot")
+            self.assertTrue(transport.calls[0]["url"].startswith("https://app.pacspace.io/"), api_key)
+
+    def test_sandbox_url_stays_a_bring_your_own_override_for_test_keys_only(self) -> None:
+        test_transport = FakeTransport()
+        test_transport.queue(status_code=200, body={"verified": True, "proofRoot": "0xroot", "message": "ok"})
+        PacSpace.init("pk_test_demo", transport=test_transport, sandbox_url="https://sandbox.example.com/").verify(
+            "0xroot"
+        )
+        self.assertTrue(test_transport.calls[0]["url"].startswith("https://sandbox.example.com/"))
+
+        live_transport = FakeTransport()
+        live_transport.queue(status_code=200, body={"verified": True, "proofRoot": "0xroot", "message": "ok"})
+        PacSpace.init("pk_live_demo", transport=live_transport, sandbox_url="https://sandbox.example.com/").verify(
+            "0xroot"
+        )
+        self.assertTrue(live_transport.calls[0]["url"].startswith("https://app.pacspace.io/"))
+
     def test_verify_public_endpoint(self) -> None:
         self.transport.queue(
             status_code=200,
@@ -350,6 +408,23 @@ class ErrorClassificationTest(unittest.TestCase):
 
 
 class WebhookAndSubmissionTest(unittest.TestCase):
+    def test_webhook_verification_accepts_either_signature_in_a_rotation_window(self) -> None:
+        raw_body = json.dumps({"event": "delta.verified", "data": {"receiptId": "0xabc"}})
+        timestamp = str(int(time.time() * 1000))
+
+        def sign(secret: str) -> str:
+            return "v1=" + hmac.new(
+                secret.encode("utf-8"), f"{timestamp}.{raw_body}".encode("utf-8"), hashlib.sha256
+            ).hexdigest()
+
+        header = f"{sign('whsec_new')},{sign('whsec_old')}"
+        self.assertEqual(Webhooks("whsec_new").verify(header, timestamp, raw_body)["event"], "delta.verified")
+        self.assertEqual(Webhooks("whsec_old").verify(header, timestamp, raw_body)["event"], "delta.verified")
+        with self.assertRaises(WebhookVerificationError):
+            Webhooks("whsec_other").verify(header, timestamp, raw_body)
+        with self.assertRaises(WebhookVerificationError):
+            Webhooks("whsec_new").verify("t=1,v0=zz", timestamp, raw_body)
+
     def test_webhook_verification_accepts_millisecond_timestamp(self) -> None:
         secret = "whsec_test"
         raw_body = json.dumps({"event": "delta.verified", "data": {"recordId": "rec_1"}})
@@ -422,5 +497,113 @@ class WebhookAndSubmissionTest(unittest.TestCase):
             )
 
 
+class RecordsFlowsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.transport = FakeTransport()
+        self.sdk = PacSpace.init("pk_test_demo", transport=self.transport)
+
+    def test_fingerprint_bytes(self) -> None:
+        ref = fingerprint(b"hello")
+        self.assertEqual(ref["alg"], "sha-256")
+        self.assertEqual(ref["byteLength"], "5")
+        self.assertEqual(
+            ref["digest"],
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        )
+
+    def test_emit_and_history(self) -> None:
+        self.transport.queue(
+            status_code=200,
+            body={
+                "success": True,
+                "data": {
+                    "receiptId": "anc_1",
+                    "recordType": "machine-action-record",
+                    "entityId": "build-1",
+                    "recordKey": "0xab",
+                    "status": "QUEUED",
+                },
+            },
+        )
+        self.transport.queue(
+            status_code=200,
+            body={
+                "schema": "record-history-bundle/v1",
+                "recordKey": "0xab",
+                "receipts": [],
+                "entries": [{"seq": 0, "status": "queued"}],
+            },
+            headers={"x-next-from-seq": "1"},
+        )
+        emitted = self.sdk.records.emit(
+            record="build-1",
+            title="Build passed",
+            occurred_at="2026-09-15T16:04:17Z",
+            actor_id="ci",
+            payloads=[{"alg": "sha-256", "digest": "aa" * 32, "byteLength": "1"}],
+            idempotency_key="build-1:t",
+        )
+        self.assertEqual(emitted["status"], "QUEUED")
+        self.assertIn("/api/v1/records/machine-action-record/build-1/transitions", self.transport.calls[0]["url"])
+        payload = json.loads(self.transport.calls[0]["body"])
+        self.assertEqual(payload["lifecycle"], "recorded")
+        self.assertEqual(payload["referenceId"], "build-1:t")
+
+        history = self.sdk.records.history("build-1")
+        self.assertEqual(history["entries"][0]["status"], "queued")
+        self.assertEqual(history["nextFromSeq"], 1)
+
+    def test_emit_carries_amends(self) -> None:
+        self.transport.queue(
+            status_code=200,
+            body={
+                "success": True,
+                "data": {
+                    "receiptId": "anc_2",
+                    "recordType": "machine-action-record",
+                    "entityId": "build-1",
+                    "status": "QUEUED",
+                },
+            },
+        )
+        self.sdk.records.emit(
+            record="build-1",
+            title="Handoff restated",
+            occurred_at="2026-09-14T10:02:00Z",
+            actor_id="ci",
+            payloads=[{"alg": "sha-256", "digest": "bb" * 32, "byteLength": "1"}],
+            amends={"recordKey": "0x" + ("ab" * 32), "entry": 1},
+            note="handoff restated",
+            lifecycle="amended",
+        )
+        payload = json.loads(self.transport.calls[0]["body"])
+        self.assertEqual(payload["lifecycle"], "amended")
+        self.assertEqual(
+            payload["content"]["amends"],
+            {"recordKey": "0x" + ("ab" * 32), "seq": 1},
+        )
+        self.assertEqual(payload["content"]["note"], "handoff restated")
+
+    def test_check_failed_entry(self) -> None:
+        result = self.sdk.records.check(
+            {
+                "schema": "record-history-bundle/v1",
+                "receipts": [],
+                "entries": [
+                    {
+                        "seq": 0,
+                        "status": "failed",
+                        "code": "RECORD_GENESIS_MISMATCH",
+                        "sentence": "A record opens with recorded; amended and closed come after it.",
+                    }
+                ],
+            }
+        )
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["failedCheck"], "schema")
+        self.assertEqual(result["entries"][0]["status"], "failed")
+
+
 if __name__ == "__main__":
     unittest.main()
+

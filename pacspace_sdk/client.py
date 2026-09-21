@@ -17,8 +17,11 @@ from .errors import (
     map_api_error,
 )
 
-DEFAULT_SANDBOX_URL = "https://api-sandbox-wnizuypena-uw.a.run.app"
 DEFAULT_PRODUCTION_URL = "https://app.pacspace.io"
+# The same host as production: the API routes each request by the environment
+# of its key, so a pk_test_ key on app.pacspace.io reads and writes the sandbox
+# data plane. sandbox_url stays as a bring-your-own override.
+DEFAULT_SANDBOX_URL = DEFAULT_PRODUCTION_URL
 DEFAULT_TIMEOUT_MS = 30_000
 DEFAULT_MAX_RETRIES = 2
 
@@ -127,6 +130,18 @@ class HttpClient:
     def get(self, path: str, options: Optional[Dict[str, Any]] = None) -> Any:
         return self._request("GET", path, None, options, authenticated=True)
 
+    def get_raw(
+        self, path: str, options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        return self._request(
+            "GET",
+            path,
+            None,
+            options,
+            authenticated=True,
+            raw=True,
+        )
+
     def post(
         self,
         path: str,
@@ -145,6 +160,7 @@ class HttpClient:
         body: Optional[Dict[str, Any]],
         options: Optional[Dict[str, Any]],
         authenticated: bool,
+        raw: bool = False,
     ) -> Any:
         if self._closed:
             raise PacSpaceError(getattr(self, "_close_reason", "Client closed"), 0, "CLIENT_CLOSED", path)
@@ -168,10 +184,30 @@ class HttpClient:
                 raise PacSpaceError(f"Network error: {exc}", 0, "NETWORK_ERROR", path) from exc
 
             parsed = self._parse_json(response.body)
+            if raw and 200 <= response.status_code < 300:
+                return {
+                    "body": parsed,
+                    "headers": response.headers,
+                    "status": response.status_code,
+                }
             if 200 <= response.status_code < 300:
                 if isinstance(parsed, dict):
                     if parsed.get("success") is True and "data" in parsed:
                         return parsed["data"]
+                    if (
+                        response.status_code == 202
+                        and parsed.get("code") == "IDEMPOTENCY_PENDING"
+                    ):
+                        return parsed
+                    if parsed.get("error", {}).get("code") == "IDEMPOTENCY_PENDING" if isinstance(parsed.get("error"), dict) else False:
+                        error = parsed["error"]
+                        return {
+                            "code": "IDEMPOTENCY_PENDING",
+                            "retryAfterSeconds": error.get("retryAfterSeconds"),
+                            "message": error.get("message"),
+                        }
+                    if parsed.get("schema") == "record-history-bundle/v1":
+                        return parsed
                     # Public verify endpoint may return direct payload.
                     if authenticated:
                         raise PacSpaceError(
@@ -211,7 +247,7 @@ class HttpClient:
     ) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "pacspace-sdk-python/0.2.0",
+            "User-Agent": "pacspace-sdk-python/0.3.0",
         }
         if authenticated:
             headers["X-Api-Key"] = self._api_key

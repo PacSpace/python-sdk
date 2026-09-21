@@ -38,7 +38,16 @@ class Webhooks:
             hashlib.sha256,
         ).hexdigest()
 
-        if not hmac.compare_digest(expected, signature):
+        # The header is one ``v1=<hex>``, or, for 24 hours after a secret
+        # rotation with overlap, two of them comma separated (the current
+        # secret's first, then the previous secret's). The event is genuine
+        # when any one matches this secret; each comparison is constant time.
+        candidates = [
+            part.strip()
+            for part in signature.split(",")
+            if part.strip().startswith("v1=")
+        ]
+        if not any(hmac.compare_digest(expected, candidate) for candidate in candidates):
             raise WebhookVerificationError(
                 "Signature mismatch. Ensure you are using the correct webhook secret and raw request body.",
             )
