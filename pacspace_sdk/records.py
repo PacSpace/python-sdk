@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import quote, urlencode
 
 from .client import HttpClient
+from .errors import ValidationError
 
 DEFAULT_RECORD_TYPE = "machine-action-record"
 
@@ -12,6 +13,38 @@ def _record_path(record_type: Optional[str], record: str, suffix: str) -> str:
     typed = quote(record_type or DEFAULT_RECORD_TYPE, safe="")
     entity = quote(record, safe="")
     return f"/api/v1/records/{typed}/{entity}{suffix}"
+
+
+def _seq_of(entry: Any, field: str) -> int:
+    """The SDK counts entries from 1, as every PacSpace page does; the wire
+    counts the same positions from 0 as ``seq``. This is the whole
+    conversion, so no caller sends or reads a ``seq``. An entry below 1 is
+    refused with the sentence that teaches the rule rather than sent as the
+    wrong entry (0.3 took the wire number under the name ``entry``, so
+    ``entry=1`` named the second entry; this is the correction, 0.4.0)."""
+    if isinstance(entry, bool) or not isinstance(entry, int) or entry < 1:
+        raise ValidationError(
+            f"{field} is {entry!r}. Entries count from 1: the first entry is entry 1. "
+            "(The HTTP API's seq counts the same positions from 0.)"
+        )
+    return entry - 1
+
+
+def _entry_of(seq: Any) -> Optional[int]:
+    return seq + 1 if isinstance(seq, int) and not isinstance(seq, bool) else None
+
+
+def _wire_ref(ref: Dict[str, Any], field: str) -> Dict[str, Any]:
+    """A committed entry named by ``recordKey`` and ``entry`` (counted from
+    1). ``seq`` is accepted as the wire number itself, for a caller reading
+    it straight off a history or a webhook."""
+    if "entry" in ref:
+        seq = _seq_of(ref["entry"], f"{field}.entry")
+    elif "seq" in ref:
+        seq = ref["seq"]
+    else:
+        raise ValidationError(f"{field} names no entry. Give entry (counted from 1) with the recordKey.")
+    return {"recordKey": ref["recordKey"], "seq": seq}
 
 
 def _fingerprint_key(ref: Dict[str, Any]) -> str:
@@ -88,14 +121,10 @@ class RecordsResource:
             content["note"] = note
         if references is not None:
             content["references"] = [
-                {"recordKey": ref["recordKey"], "seq": ref.get("entry", ref.get("seq"))}
-                for ref in references
+                _wire_ref(ref, f"references[{index}]") for index, ref in enumerate(references)
             ]
         if amends is not None:
-            content["amends"] = {
-                "recordKey": amends["recordKey"],
-                "seq": amends.get("entry", amends.get("seq")),
-            }
+            content["amends"] = _wire_ref(amends, "amends")
 
         body: Dict[str, Any] = {
             "lifecycle": lifecycle or "recorded",
@@ -118,7 +147,7 @@ class RecordsResource:
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         return self._client.get(
-            _record_path(record_type, record, f"/receipts/{int(entry)}"),
+            _record_path(record_type, record, f"/receipts/{_seq_of(entry, 'entry')}"),
             options,
         )
 
@@ -132,9 +161,9 @@ class RecordsResource:
     ) -> Dict[str, Any]:
         query: Dict[str, Any] = {}
         if from_entry is not None:
-            query["fromSeq"] = from_entry
+            query["fromSeq"] = _seq_of(from_entry, "from_entry")
         if to_entry is not None:
-            query["toSeq"] = to_entry
+            query["toSeq"] = _seq_of(to_entry, "to_entry")
         suffix = "/history"
         if query:
             suffix += "?" + urlencode(query)
@@ -164,9 +193,9 @@ class RecordsResource:
             for receipt in history.get("receipts") or []
             if isinstance(receipt, dict) and isinstance(receipt.get("seq"), int)
         }
-        expect_by_entry = {
-            row["entry"]: row.get("payloads") or []
-            for row in (expect or [])
+        expect_by_seq = {
+            _seq_of(row["entry"], f"expect[{index}].entry"): row.get("payloads") or []
+            for index, row in enumerate(expect or [])
             if isinstance(row, dict) and "entry" in row
         }
 
@@ -175,13 +204,14 @@ class RecordsResource:
         for entry in entries:
             seq = entry.get("seq")
             row = {
-                "entry": seq,
+                # The result speaks entry numbers as the pages do: the wire's seq 0 is entry 1.
+                "entry": _entry_of(seq),
                 "status": entry.get("status") or "queued",
                 "code": entry.get("code"),
                 "sentence": entry.get("sentence"),
             }
-            if seq in expect_by_entry:
-                wanted = expect_by_entry[seq]
+            if seq in expect_by_seq:
+                wanted = expect_by_seq[seq]
                 committed = {
                     _fingerprint_key(ref)
                     for ref in _payloads_of(receipts_by_seq.get(seq) or {})

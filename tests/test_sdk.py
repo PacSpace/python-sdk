@@ -553,7 +553,7 @@ class RecordsFlowsTest(unittest.TestCase):
         self.assertEqual(history["entries"][0]["status"], "queued")
         self.assertEqual(history["nextFromSeq"], 1)
 
-    def test_emit_carries_amends(self) -> None:
+    def _queue_emit(self) -> None:
         self.transport.queue(
             status_code=200,
             body={
@@ -566,6 +566,9 @@ class RecordsFlowsTest(unittest.TestCase):
                 },
             },
         )
+
+    def test_emit_counts_entries_from_one_as_the_pages_do(self) -> None:
+        self._queue_emit()
         self.sdk.records.emit(
             record="build-1",
             title="Handoff restated",
@@ -573,16 +576,65 @@ class RecordsFlowsTest(unittest.TestCase):
             actor_id="ci",
             payloads=[{"alg": "sha-256", "digest": "bb" * 32, "byteLength": "1"}],
             amends={"recordKey": "0x" + ("ab" * 32), "entry": 1},
+            references=[{"recordKey": "0x" + ("cd" * 32), "entry": 3}, {"recordKey": "0x" + ("ef" * 32), "seq": 4}],
             note="handoff restated",
             lifecycle="amended",
         )
         payload = json.loads(self.transport.calls[0]["body"])
         self.assertEqual(payload["lifecycle"], "amended")
+        # entry 1 is the first entry: seq 0 on the wire. A seq given as seq goes as it is.
+        self.assertEqual(payload["content"]["amends"], {"recordKey": "0x" + ("ab" * 32), "seq": 0})
         self.assertEqual(
-            payload["content"]["amends"],
-            {"recordKey": "0x" + ("ab" * 32), "seq": 1},
+            payload["content"]["references"],
+            [{"recordKey": "0x" + ("cd" * 32), "seq": 2}, {"recordKey": "0x" + ("ef" * 32), "seq": 4}],
         )
         self.assertEqual(payload["content"]["note"], "handoff restated")
+
+    def test_entry_below_one_is_refused_before_anything_is_sent(self) -> None:
+        from pacspace_sdk.errors import ValidationError
+
+        base = dict(record="build-1", title="t", occurred_at="2026-09-14T10:02:00Z", actor_id="ci", payloads=[])
+        with self.assertRaises(ValidationError) as caught:
+            self.sdk.records.emit(**base, amends={"recordKey": "0xab", "entry": 0})
+        self.assertEqual(
+            str(caught.exception),
+            "amends.entry is 0. Entries count from 1: the first entry is entry 1. "
+            "(The HTTP API's seq counts the same positions from 0.)",
+        )
+        with self.assertRaises(ValidationError):
+            self.sdk.records.emit(**base, references=[{"recordKey": "0xab", "entry": True}])
+        with self.assertRaises(ValidationError):
+            self.sdk.records.emit(**base, amends={"recordKey": "0xab"})
+        with self.assertRaises(ValidationError):
+            self.sdk.records.receipt("build-1", 0)
+        with self.assertRaises(ValidationError):
+            self.sdk.records.history("build-1", from_entry=0)
+        with self.assertRaises(ValidationError):
+            self.sdk.records.check({"receipts": []}, expect=[{"entry": 0, "payloads": []}])
+        self.assertEqual(self.transport.calls, [])
+
+    def test_receipt_and_history_window_are_addressed_by_seq_on_the_wire(self) -> None:
+        self.transport.queue(status_code=200, body={"success": True, "data": {"receipt": {}}})
+        self.transport.queue(status_code=200, body={"schema": "record-history-bundle/v1", "receipts": []}, headers={})
+        self.sdk.records.receipt("build-1", 1)
+        self.assertIn("/receipts/0", self.transport.calls[0]["url"])
+        self.sdk.records.history("build-1", from_entry=2, to_entry=5)
+        self.assertIn("/history?fromSeq=1&toSeq=4", self.transport.calls[1]["url"])
+
+    def test_check_speaks_entry_numbers(self) -> None:
+        digest = "aa" * 32
+        result = self.sdk.records.check(
+            {
+                "schema": "record-history-bundle/v1",
+                "receipts": [
+                    {"seq": 0, "status": "committed", "recordContent": {"payloads": [{"alg": "sha-256", "digest": digest, "byteLength": "1"}]}}
+                ],
+                "entries": [{"seq": 0, "status": "committed"}],
+            },
+            expect=[{"entry": 1, "payloads": [{"alg": "sha-256", "digest": digest, "byteLength": "1"}]}],
+        )
+        self.assertEqual(result["entries"][0]["entry"], 1)
+        self.assertTrue(result["entries"][0]["expected"])
 
     def test_check_failed_entry(self) -> None:
         result = self.sdk.records.check(

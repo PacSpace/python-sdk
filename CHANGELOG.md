@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 - 2026-09-22
+
+### Changed
+
+- **Entries count from 1**, as every PacSpace page does. Through 0.3.0 the SDK took the wire's `seq` (counted from 0) under the name `entry`, so `amends={"entry": 1}` named the second entry while the record page called that one "Entry 2". Now `entry` is the entry's number as the pages show it, and the SDK converts at its boundary (`seq = entry - 1`) in `records.emit` (`amends["entry"]`, `references[]["entry"]`), `records.receipt(record, entry)`, `records.history(record, from_entry=, to_entry=)`, and `records.check` (`expect[]["entry"]`; each result's `entry` is now `seq + 1`). An `entry` below 1 raises `ValidationError` with the sentence that teaches the rule before anything is sent. A `"seq"` given in place of `"entry"` in `amends` or `references[]` goes on the wire as it is, for a caller reading it straight off a history or a webhook. The history file keeps the wire's `seq`. **If your code passed 0-based numbers, add 1.**
+- User-Agent header bumped to `pacspace-sdk-python/0.4.0`.
+
 ## 0.3.0 - 2026-09-21
 
 ### Changed

@@ -39,7 +39,7 @@ entry = pac.records.emit(
 )
 ```
 
-`adjusts` names the committed Balance entry this delta adjusts. `amends` names a committed records entry; the SDK sends `seq` on the wire.
+`adjusts` names the committed Balance entry this delta adjusts. `amends` names a committed records entry by `recordKey` and `entry`. The SDK counts entries from 1, as every PacSpace page does: `"entry": 1` is the first entry of the record, the one the record page calls "Entry 1". The HTTP API and the history file carry the same position as `seq`, counted from 0; the SDK converts at its boundary (`seq = entry - 1`), so you never send a `seq`. An `entry` below 1 raises `ValidationError` before anything is sent. `receipt(record, entry)`, `history(record, from_entry=, to_entry=)`, and `check`'s `expect[]["entry"]` count the same way; a `"seq"` read straight off a history or a webhook may be given in place of `"entry"` and goes on the wire as it is. The history file keeps the wire's `seq`; `check` reports each result as `entry` (`seq + 1`).
 
 ## Verify source selection
 
