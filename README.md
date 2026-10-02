@@ -41,6 +41,20 @@ entry = pac.records.emit(
 
 `adjusts` names the committed Balance entry this delta adjusts. `amends` names a committed records entry by `recordKey` and `entry`. The SDK counts entries from 1, as every PacSpace page does: `"entry": 1` is the first entry of the record, the one the record page calls "Entry 1". The HTTP API and the history file carry the same position as `seq`, counted from 0; the SDK converts at its boundary (`seq = entry - 1`), so you never send a `seq`. An `entry` below 1 raises `ValidationError` before anything is sent. `receipt(record, entry)`, `history(record, from_entry=, to_entry=)`, and `check`'s `expect[]["entry"]` count the same way; a `"seq"` read straight off a history or a webhook may be given in place of `"entry"` and goes on the wire as it is. The history file keeps the wire's `seq`; `check` reports each result as `entry` (`seq + 1`).
 
+## `fingerprint(source, alg=None, *, blind=None, blinding=None)`
+
+fingerprint() blinds by default: it mixes a random 32-byte value into the fingerprint, so the fingerprint cannot be matched to a guessed file without the file's blinding file.
+
+It returns a Fingerprint with ref and blinding. Send ref as the payload. Save blinding beside the file with write_blinding_file(path, blinding); anyone checking the file later needs it.
+
+To check a file later, pass it with its blinding file: in records.check, expect=[{"entry": 1, "files": [{"source": f, "blinding": b}]}], or fingerprint(f, blinding=b). A blinding belongs to one file; another file is refused.
+
+The blinding file is as private as the file: whoever holds both can confirm the file is in the record. The file's size is stored as before.
+
+blind=False, or fingerprint(source, "sha-256"), gives today's plain sha-256 fingerprint as a Fingerprint with blinding None. It is not blinded.
+
+On Windows the blinding file's permissions are not restricted to you; keep it somewhere only you can read.
+
 ## Verify source selection
 
 ```python

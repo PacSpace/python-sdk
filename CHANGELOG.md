@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0 - 2026-10-02
+
+- **fingerprint() now blinds by default and returns a Fingerprint with .ref and .blinding. Pass .ref as the payload, and save .blinding with write_blinding_file beside the file: a blinded entry can be checked only with it.**
+- fingerprint(source) mixes a random 32-byte value into the fingerprint (alg hmac-sha-256), so it cannot be matched to a guessed file without the blinding file. The file's size is stored as before.
+- For today's plain sha-256 fingerprint, pass blind=False or fingerprint(source, "sha-256") and use .ref.
+- To check a file later, pass it with its blinding file: records.check(history, expect=[{"entry": 1, "files": [{"source": f, "blinding": b}]}]), or fingerprint(f, blinding=b). Fingerprinting the file again without its blinding file gives a different fingerprint, which does not match.
+- records.emit and records.check refuse a Blinding, a blinding file or a Fingerprint before sending anything (RECORD_BLINDING_INCLUDED).
+- json.dumps refuses a Blinding; log the ref instead.
+- records.check now refuses an expected row or item it cannot read, instead of skipping it.
+- If a blinding file is lost, its entry can no longer be matched to the file. The entry's seal still verifies.
+- Before: ref = fingerprint(f) ... payloads=[ref]
+- After: fp = fingerprint(f); write_blinding_file(path, fp.blinding) ... payloads=[fp.ref]
+
+### Added
+
+- `records.check` gives each entry a `kind`: `attempt`, `failure` or `transition`.
+- Verifies a record disclosure and a kept copy (record-disclosure/v1, record-link-copy/v1), including v2 records' fields, up to their record hash against the record's seal history.
+- `records.check` reads v2 record histories (record-history-bundle/v2) as well as v1.
+
 ## 0.4.0 - 2026-09-22
 
 ### Changed

@@ -1,0 +1,758 @@
+{
+  "schema": "pacspace-link-copy-vectors/v1",
+  "generator": "scripts/records/generate-seal-history-vectors.mjs",
+  "note": "Every key, salt key, seed and handle in this file is a fixed test value, never a real one.",
+  "fixtures": {
+    "RA": "0x6be7978571bbbedf9d39d6af21bf633248fe373f37c87355c823b0490f39b0a6",
+    "RB": "0xdfcab54cdb3a2c3a07a1c3bc3344e89c19f5b514abec89b6bc69ca5707fa813b",
+    "RC": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+    "RO": "0x9831333ed3b1f26f48db5753bf06fa8a3147df325763e520ae7492e771d7589d",
+    "SA": "0xb3d173b01e662e49906ff7b4d5eaefde3c82a870ad918ef6c344271a679c71c4",
+    "SB": "0x7d3a4fa577d21c18140cd281c0946cf76facb060db63ade59259d663b275ef0a",
+    "SC": "0xf8a6c006fae3abdee24999832a7d59c5258a07b212e4b91d0d88c4139ae37281",
+    "SD": "0x1c8e5c5bc718204674ed1981c7447baf9f252e697225c50b4b7811ff8af2cf51",
+    "KB0": "0x1b6a33a1d6e9c8e63f0797ed1ec4826c6757291110329284107fa920c08b29c0",
+    "KB1": "0x450fbd988f2131f9d348eccf5c28fb93f437ccb3d87d8c4e8d7e8953c647d189",
+    "KO": "0x0054338375b80985979fb293385490b6df965a0c327071729a2c7d53e33d0447",
+    "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+    "chain": {
+      "chainId": 296,
+      "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+    },
+    "layout": "machine-action-record/v1"
+  },
+  "caseCount": 7,
+  "cases": [
+    {
+      "id": "LC-01",
+      "kind": "link-copy",
+      "title": "A seals-only copy of record C",
+      "input": {
+        "sealHistory": {
+          "schema": "record-seal-history/v1",
+          "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "currentWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+          "entries": [
+            {
+              "seq": 0,
+              "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "newWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "seal": "0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "itemIndex": 0,
+              "itemOpening": "0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578",
+              "merkleProof": [
+                "0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b",
+                "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            },
+            {
+              "seq": 1,
+              "previousWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "newWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+              "seal": "0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9",
+              "itemIndex": 1,
+              "itemOpening": "0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7",
+              "merkleProof": [
+                "0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa",
+                "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            },
+            {
+              "seq": 2,
+              "previousWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+              "newWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+              "seal": "0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+              "itemIndex": 2,
+              "itemOpening": "0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9",
+              "merkleProof": [
+                "0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58",
+                "0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            }
+          ],
+          "pending": [],
+          "ledger": {
+            "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+            "head": "0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f",
+            "batches": [
+              {
+                "batchId": 6,
+                "merkleRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "blockTime": "2026-09-30T10:00:00.000Z"
+              }
+            ]
+          },
+          "digest": "0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46"
+        },
+        "disclosure": null
+      },
+      "expected": {
+        "sha256": "f915c3fc4c0759ef9d790818383c0bf082d4bfbfc3697cfbff499638c184290d",
+        "byteLength": 2676,
+        "jcs": "{\"disclosure\":null,\"schema\":\"record-link-copy/v1\",\"sealHistory\":{\"chain\":{\"chainId\":296,\"contractAddress\":\"0xd80969edcc4722c5e467c1c91c31c1bd911ccf50\"},\"currentWord\":\"0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1\",\"digest\":\"0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46\",\"entries\":[{\"batchId\":6,\"itemIndex\":0,\"itemOpening\":\"0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578\",\"merkleProof\":[\"0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b\",\"0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312\"],\"newWord\":\"0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67\",\"previousWord\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"proofRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\",\"seal\":\"0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67\",\"seq\":0},{\"batchId\":6,\"itemIndex\":1,\"itemOpening\":\"0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7\",\"merkleProof\":[\"0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa\",\"0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312\"],\"newWord\":\"0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9\",\"previousWord\":\"0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67\",\"proofRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\",\"seal\":\"0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9\",\"seq\":1},{\"batchId\":6,\"itemIndex\":2,\"itemOpening\":\"0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9\",\"merkleProof\":[\"0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58\",\"0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718\"],\"newWord\":\"0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1\",\"previousWord\":\"0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9\",\"proofRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\",\"seal\":\"0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1\",\"seq\":2}],\"layout\":{\"layoutDigest\":\"0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8\",\"layoutId\":6,\"layoutVersion\":1},\"ledger\":{\"batches\":[{\"batchId\":6,\"blockTime\":\"2026-09-30T10:00:00.000Z\",\"merkleRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\"}],\"genesisHead\":\"0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986\",\"head\":\"0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f\"},\"pending\":[],\"recordKey\":\"0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386\",\"schema\":\"record-seal-history/v1\"}}"
+      }
+    },
+    {
+      "id": "LC-02",
+      "kind": "link-copy",
+      "title": "Record B (v2) with a partial disclosure of both entries",
+      "input": {
+        "sealHistory": {
+          "schema": "record-seal-history/v1",
+          "recordKey": "0xdfcab54cdb3a2c3a07a1c3bc3344e89c19f5b514abec89b6bc69ca5707fa813b",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "currentWord": "0x00060102000000010000000072c68a89f42b5561b74e43d558aacb0bbff87291",
+          "entries": [
+            {
+              "seq": 0,
+              "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "newWord": "0x00060101000000000000000028d082f0b3527c214fc506d99e10ba6ed23e4860",
+              "seal": "0x4a8932822c4c0a97b15cfb4a28d082f0b3527c214fc506d99e10ba6ed23e4860",
+              "recordHash": "0xa1216cb678315b71579a55dc1c6af0aa45ed3912cfa154c6c0df97d0fb95b132",
+              "itemIndex": 0,
+              "itemOpening": "0x949905636f750def9bb1157582565f477f82c5b06109dff4a65bc79e15ef477b",
+              "merkleProof": [
+                "0x9a4fdfafe9aabb05949a035e9419373a97d0a1fd5f647f53d2af03888f809223",
+                "0x390201f6a8ef180c03fa217bbead3fc7fc89f6fd9435dc49178cfb190ae6eb87"
+              ],
+              "proofRoot": "0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2",
+              "batchId": 9
+            },
+            {
+              "seq": 1,
+              "previousWord": "0x00060101000000000000000028d082f0b3527c214fc506d99e10ba6ed23e4860",
+              "newWord": "0x00060102000000010000000072c68a89f42b5561b74e43d558aacb0bbff87291",
+              "seal": "0x381698363b07c24ba1b5a31572c68a89f42b5561b74e43d558aacb0bbff87291",
+              "recordHash": "0xdf2d4c9a38622c161dba9078d3b2e5f98adb02e1f11b1f6446ca01a66a2d6d22",
+              "itemIndex": 2,
+              "itemOpening": "0x8aa14f50f1b7a5d11810636b8f627a44147dde3d1a1326b38e014c4121f4edd4",
+              "merkleProof": [
+                "0x8cfab93683e4867f41c1c3f763c4b60f8115239fe2a007e52d3c758580d479f5",
+                "0xc251e280967ce76bb8a97fa526a6c5d49c02ae9c9362b38d46dcf44667f67a77"
+              ],
+              "proofRoot": "0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2",
+              "batchId": 9
+            }
+          ],
+          "pending": [],
+          "ledger": {
+            "genesisHead": "0xee333333493e442552680349adaddcc607f677156fa26b25bc9e5001bc4ce402",
+            "head": "0xe6ade281700f6b67400ddc1550ba159e5954a59386a0ac88d30ee327fb705492",
+            "batches": [
+              {
+                "batchId": 9,
+                "merkleRoot": "0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2",
+                "blockTime": "2026-09-30T10:15:00.000Z"
+              }
+            ]
+          },
+          "digest": "0x3f5b5b8ed04bdefbfd4b6ca72f9f96969ca2fff91e20754020a8d2c31c9d0096"
+        },
+        "disclosure": {
+          "schema": "record-disclosure/v1",
+          "recordKey": "0xdfcab54cdb3a2c3a07a1c3bc3344e89c19f5b514abec89b6bc69ca5707fa813b",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "recordHashVersion": 2,
+          "entries": [
+            {
+              "seq": 0,
+              "recordOpening": "0xe3b74c9854d35256290a1bf515784066458c6ea4b1ecac4c8d7f86a4acd71b7b",
+              "leaves": [
+                "0x7b2b7a6d119724940949df03819fa5e467b96fcd9b45be03202f3cc5cdb9ac42",
+                "0x8e5365b710d4b4b01410ca13e2a593f48504781c4cec51b32b5be189ad3ad171",
+                "0xd4ce510837802575122994f32855cded79078c8a3fee61b92b55f0f6c8bae2ca",
+                "0xf2e431c2cf6b61defb939d61de7c2ded8cfc8fe0d63598b8bd6c7f7ceeaaef36",
+                "0xf8f276541d6bdc3c53d1c34f58fe0c51d367e42285dd53a07a06606d8cd1aa71"
+              ],
+              "revealed": [
+                {
+                  "pointer": "/payloads/0",
+                  "value": {
+                    "alg": "sha-256",
+                    "digest": "5614b8d6147b7e6efb725db10f7d203d5a43aaf83c263896215492693596026c",
+                    "byteLength": "48213"
+                  },
+                  "salt": "0x9bc038dca03d5968b927c4b8b3105d58c5985a235aae175495e377827166c700"
+                },
+                {
+                  "pointer": "/title",
+                  "value": "Arm 7 stopped for a jam",
+                  "salt": "0xe28984312c3d257b73e42823d15456d219f863101a461bf3d5c5f9cc410375d8"
+                }
+              ]
+            },
+            {
+              "seq": 1,
+              "recordOpening": "0xcc34279f570b75832438ad58d7f37198ff7ef4259d3c9fce87de3729255c4bcd",
+              "leaves": [
+                "0x637ff11b8d7fa2a268ed1d3976f7b55398b0268e692d402428917dbbfdd3a527",
+                "0xb691e079128e9a10301efba0ed21d802c09011de35095a188316e0763a4c7708",
+                "0xc8f910a9cd507465530d774433ab36560e376581a5d803d651521dbb132671cf"
+              ],
+              "revealed": [
+                {
+                  "pointer": "/title",
+                  "value": "Arm 7 jam cleared",
+                  "salt": "0xa00a82e0c61964552d9090b2227c748006721f3f59a6d09f621b03c2ba3b2d95"
+                }
+              ]
+            }
+          ],
+          "digest": "0x50e33a542a2fea98e16beca771aa09e93e20eb8c3162291edee4233106817d2b"
+        }
+      },
+      "expected": {
+        "sha256": "05e6562183cd1819d81387edb96b6d88996af17454b854450dcc0a8c67849925",
+        "byteLength": 3953,
+        "jcs": "{\"disclosure\":{\"chain\":{\"chainId\":296,\"contractAddress\":\"0xd80969edcc4722c5e467c1c91c31c1bd911ccf50\"},\"digest\":\"0x50e33a542a2fea98e16beca771aa09e93e20eb8c3162291edee4233106817d2b\",\"entries\":[{\"leaves\":[\"0x7b2b7a6d119724940949df03819fa5e467b96fcd9b45be03202f3cc5cdb9ac42\",\"0x8e5365b710d4b4b01410ca13e2a593f48504781c4cec51b32b5be189ad3ad171\",\"0xd4ce510837802575122994f32855cded79078c8a3fee61b92b55f0f6c8bae2ca\",\"0xf2e431c2cf6b61defb939d61de7c2ded8cfc8fe0d63598b8bd6c7f7ceeaaef36\",\"0xf8f276541d6bdc3c53d1c34f58fe0c51d367e42285dd53a07a06606d8cd1aa71\"],\"recordOpening\":\"0xe3b74c9854d35256290a1bf515784066458c6ea4b1ecac4c8d7f86a4acd71b7b\",\"revealed\":[{\"pointer\":\"/payloads/0\",\"salt\":\"0x9bc038dca03d5968b927c4b8b3105d58c5985a235aae175495e377827166c700\",\"value\":{\"alg\":\"sha-256\",\"byteLength\":\"48213\",\"digest\":\"5614b8d6147b7e6efb725db10f7d203d5a43aaf83c263896215492693596026c\"}},{\"pointer\":\"/title\",\"salt\":\"0xe28984312c3d257b73e42823d15456d219f863101a461bf3d5c5f9cc410375d8\",\"value\":\"Arm 7 stopped for a jam\"}],\"seq\":0},{\"leaves\":[\"0x637ff11b8d7fa2a268ed1d3976f7b55398b0268e692d402428917dbbfdd3a527\",\"0xb691e079128e9a10301efba0ed21d802c09011de35095a188316e0763a4c7708\",\"0xc8f910a9cd507465530d774433ab36560e376581a5d803d651521dbb132671cf\"],\"recordOpening\":\"0xcc34279f570b75832438ad58d7f37198ff7ef4259d3c9fce87de3729255c4bcd\",\"revealed\":[{\"pointer\":\"/title\",\"salt\":\"0xa00a82e0c61964552d9090b2227c748006721f3f59a6d09f621b03c2ba3b2d95\",\"value\":\"Arm 7 jam cleared\"}],\"seq\":1}],\"layout\":{\"layoutDigest\":\"0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8\",\"layoutId\":6,\"layoutVersion\":1},\"recordHashVersion\":2,\"recordKey\":\"0xdfcab54cdb3a2c3a07a1c3bc3344e89c19f5b514abec89b6bc69ca5707fa813b\",\"schema\":\"record-disclosure/v1\"},\"schema\":\"record-link-copy/v1\",\"sealHistory\":{\"chain\":{\"chainId\":296,\"contractAddress\":\"0xd80969edcc4722c5e467c1c91c31c1bd911ccf50\"},\"currentWord\":\"0x00060102000000010000000072c68a89f42b5561b74e43d558aacb0bbff87291\",\"digest\":\"0x3f5b5b8ed04bdefbfd4b6ca72f9f96969ca2fff91e20754020a8d2c31c9d0096\",\"entries\":[{\"batchId\":9,\"itemIndex\":0,\"itemOpening\":\"0x949905636f750def9bb1157582565f477f82c5b06109dff4a65bc79e15ef477b\",\"merkleProof\":[\"0x9a4fdfafe9aabb05949a035e9419373a97d0a1fd5f647f53d2af03888f809223\",\"0x390201f6a8ef180c03fa217bbead3fc7fc89f6fd9435dc49178cfb190ae6eb87\"],\"newWord\":\"0x00060101000000000000000028d082f0b3527c214fc506d99e10ba6ed23e4860\",\"previousWord\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"proofRoot\":\"0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2\",\"recordHash\":\"0xa1216cb678315b71579a55dc1c6af0aa45ed3912cfa154c6c0df97d0fb95b132\",\"seal\":\"0x4a8932822c4c0a97b15cfb4a28d082f0b3527c214fc506d99e10ba6ed23e4860\",\"seq\":0},{\"batchId\":9,\"itemIndex\":2,\"itemOpening\":\"0x8aa14f50f1b7a5d11810636b8f627a44147dde3d1a1326b38e014c4121f4edd4\",\"merkleProof\":[\"0x8cfab93683e4867f41c1c3f763c4b60f8115239fe2a007e52d3c758580d479f5\",\"0xc251e280967ce76bb8a97fa526a6c5d49c02ae9c9362b38d46dcf44667f67a77\"],\"newWord\":\"0x00060102000000010000000072c68a89f42b5561b74e43d558aacb0bbff87291\",\"previousWord\":\"0x00060101000000000000000028d082f0b3527c214fc506d99e10ba6ed23e4860\",\"proofRoot\":\"0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2\",\"recordHash\":\"0xdf2d4c9a38622c161dba9078d3b2e5f98adb02e1f11b1f6446ca01a66a2d6d22\",\"seal\":\"0x381698363b07c24ba1b5a31572c68a89f42b5561b74e43d558aacb0bbff87291\",\"seq\":1}],\"layout\":{\"layoutDigest\":\"0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8\",\"layoutId\":6,\"layoutVersion\":1},\"ledger\":{\"batches\":[{\"batchId\":9,\"blockTime\":\"2026-09-30T10:15:00.000Z\",\"merkleRoot\":\"0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2\"}],\"genesisHead\":\"0xee333333493e442552680349adaddcc607f677156fa26b25bc9e5001bc4ce402\",\"head\":\"0xe6ade281700f6b67400ddc1550ba159e5954a59386a0ac88d30ee327fb705492\"},\"pending\":[],\"recordKey\":\"0xdfcab54cdb3a2c3a07a1c3bc3344e89c19f5b514abec89b6bc69ca5707fa813b\",\"schema\":\"record-seal-history/v1\"}}",
+        "chainRoots": {
+          "9": "0x4cc7bdaea699762383e373c29fc3c0a18efd785656c689d1ac4d2f3792a3c6e2"
+        },
+        "verifies": true
+      }
+    },
+    {
+      "id": "LC-03",
+      "kind": "link-copy",
+      "title": "Record C (v1) with entry 2 disclosed whole",
+      "input": {
+        "sealHistory": {
+          "schema": "record-seal-history/v1",
+          "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "currentWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+          "entries": [
+            {
+              "seq": 0,
+              "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "newWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "seal": "0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "itemIndex": 0,
+              "itemOpening": "0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578",
+              "merkleProof": [
+                "0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b",
+                "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            },
+            {
+              "seq": 1,
+              "previousWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "newWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+              "seal": "0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9",
+              "itemIndex": 1,
+              "itemOpening": "0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7",
+              "merkleProof": [
+                "0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa",
+                "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            },
+            {
+              "seq": 2,
+              "previousWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+              "newWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+              "seal": "0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+              "itemIndex": 2,
+              "itemOpening": "0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9",
+              "merkleProof": [
+                "0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58",
+                "0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            }
+          ],
+          "pending": [],
+          "ledger": {
+            "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+            "head": "0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f",
+            "batches": [
+              {
+                "batchId": 6,
+                "merkleRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "blockTime": "2026-09-30T10:00:00.000Z"
+              }
+            ]
+          },
+          "digest": "0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46"
+        },
+        "disclosure": {
+          "schema": "record-disclosure/v1",
+          "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "recordHashVersion": 1,
+          "entries": [
+            {
+              "seq": 1,
+              "recordOpening": "0x507f9ae4fc9a0b3c65c5077a20f0e6af10d2f0284aeba6315711c1882dc79468",
+              "recordContent": {
+                "title": "Press 2 run, count corrected",
+                "actorId": "shift-lead-1",
+                "count": 412
+              }
+            }
+          ],
+          "digest": "0x10c1fdd6cd222d2ea2784017dee8239dd74efdf74dc12685103797894b9f8559"
+        }
+      },
+      "expected": {
+        "sha256": "2d6718e01164b6c2a351a6b12de326bffff18ad0300484b141ab9cf9925b5cd0",
+        "byteLength": 3300,
+        "jcs": "{\"disclosure\":{\"chain\":{\"chainId\":296,\"contractAddress\":\"0xd80969edcc4722c5e467c1c91c31c1bd911ccf50\"},\"digest\":\"0x10c1fdd6cd222d2ea2784017dee8239dd74efdf74dc12685103797894b9f8559\",\"entries\":[{\"recordContent\":{\"actorId\":\"shift-lead-1\",\"count\":412,\"title\":\"Press 2 run, count corrected\"},\"recordOpening\":\"0x507f9ae4fc9a0b3c65c5077a20f0e6af10d2f0284aeba6315711c1882dc79468\",\"seq\":1}],\"layout\":{\"layoutDigest\":\"0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8\",\"layoutId\":6,\"layoutVersion\":1},\"recordHashVersion\":1,\"recordKey\":\"0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386\",\"schema\":\"record-disclosure/v1\"},\"schema\":\"record-link-copy/v1\",\"sealHistory\":{\"chain\":{\"chainId\":296,\"contractAddress\":\"0xd80969edcc4722c5e467c1c91c31c1bd911ccf50\"},\"currentWord\":\"0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1\",\"digest\":\"0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46\",\"entries\":[{\"batchId\":6,\"itemIndex\":0,\"itemOpening\":\"0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578\",\"merkleProof\":[\"0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b\",\"0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312\"],\"newWord\":\"0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67\",\"previousWord\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"proofRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\",\"seal\":\"0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67\",\"seq\":0},{\"batchId\":6,\"itemIndex\":1,\"itemOpening\":\"0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7\",\"merkleProof\":[\"0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa\",\"0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312\"],\"newWord\":\"0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9\",\"previousWord\":\"0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67\",\"proofRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\",\"seal\":\"0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9\",\"seq\":1},{\"batchId\":6,\"itemIndex\":2,\"itemOpening\":\"0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9\",\"merkleProof\":[\"0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58\",\"0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718\"],\"newWord\":\"0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1\",\"previousWord\":\"0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9\",\"proofRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\",\"seal\":\"0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1\",\"seq\":2}],\"layout\":{\"layoutDigest\":\"0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8\",\"layoutId\":6,\"layoutVersion\":1},\"ledger\":{\"batches\":[{\"batchId\":6,\"blockTime\":\"2026-09-30T10:00:00.000Z\",\"merkleRoot\":\"0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a\"}],\"genesisHead\":\"0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986\",\"head\":\"0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f\"},\"pending\":[],\"recordKey\":\"0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386\",\"schema\":\"record-seal-history/v1\"}}",
+        "chainRoots": {
+          "6": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a"
+        },
+        "verifies": true
+      }
+    },
+    {
+      "id": "LC-04",
+      "kind": "link-copy-refused",
+      "title": "Record C's history with record B's disclosure",
+      "input": {
+        "sealHistory": {
+          "schema": "record-seal-history/v1",
+          "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "currentWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+          "entries": [
+            {
+              "seq": 0,
+              "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "newWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "seal": "0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "itemIndex": 0,
+              "itemOpening": "0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578",
+              "merkleProof": [
+                "0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b",
+                "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            },
+            {
+              "seq": 1,
+              "previousWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+              "newWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+              "seal": "0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9",
+              "itemIndex": 1,
+              "itemOpening": "0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7",
+              "merkleProof": [
+                "0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa",
+                "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            },
+            {
+              "seq": 2,
+              "previousWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+              "newWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+              "seal": "0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+              "itemIndex": 2,
+              "itemOpening": "0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9",
+              "merkleProof": [
+                "0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58",
+                "0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718"
+              ],
+              "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+              "batchId": 6
+            }
+          ],
+          "pending": [],
+          "ledger": {
+            "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+            "head": "0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f",
+            "batches": [
+              {
+                "batchId": 6,
+                "merkleRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "blockTime": "2026-09-30T10:00:00.000Z"
+              }
+            ]
+          },
+          "digest": "0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46"
+        },
+        "disclosure": {
+          "schema": "record-disclosure/v1",
+          "recordKey": "0xdfcab54cdb3a2c3a07a1c3bc3344e89c19f5b514abec89b6bc69ca5707fa813b",
+          "chain": {
+            "chainId": 296,
+            "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+          },
+          "layout": {
+            "layoutId": 6,
+            "layoutVersion": 1,
+            "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+          },
+          "recordHashVersion": 2,
+          "entries": [
+            {
+              "seq": 0,
+              "recordOpening": "0xe3b74c9854d35256290a1bf515784066458c6ea4b1ecac4c8d7f86a4acd71b7b",
+              "leaves": [
+                "0x7b2b7a6d119724940949df03819fa5e467b96fcd9b45be03202f3cc5cdb9ac42",
+                "0x8e5365b710d4b4b01410ca13e2a593f48504781c4cec51b32b5be189ad3ad171",
+                "0xd4ce510837802575122994f32855cded79078c8a3fee61b92b55f0f6c8bae2ca",
+                "0xf2e431c2cf6b61defb939d61de7c2ded8cfc8fe0d63598b8bd6c7f7ceeaaef36",
+                "0xf8f276541d6bdc3c53d1c34f58fe0c51d367e42285dd53a07a06606d8cd1aa71"
+              ],
+              "revealed": [
+                {
+                  "pointer": "/payloads/0",
+                  "value": {
+                    "alg": "sha-256",
+                    "digest": "5614b8d6147b7e6efb725db10f7d203d5a43aaf83c263896215492693596026c",
+                    "byteLength": "48213"
+                  },
+                  "salt": "0x9bc038dca03d5968b927c4b8b3105d58c5985a235aae175495e377827166c700"
+                },
+                {
+                  "pointer": "/title",
+                  "value": "Arm 7 stopped for a jam",
+                  "salt": "0xe28984312c3d257b73e42823d15456d219f863101a461bf3d5c5f9cc410375d8"
+                }
+              ]
+            },
+            {
+              "seq": 1,
+              "recordOpening": "0xcc34279f570b75832438ad58d7f37198ff7ef4259d3c9fce87de3729255c4bcd",
+              "leaves": [
+                "0x637ff11b8d7fa2a268ed1d3976f7b55398b0268e692d402428917dbbfdd3a527",
+                "0xb691e079128e9a10301efba0ed21d802c09011de35095a188316e0763a4c7708",
+                "0xc8f910a9cd507465530d774433ab36560e376581a5d803d651521dbb132671cf"
+              ],
+              "revealed": [
+                {
+                  "pointer": "/title",
+                  "value": "Arm 7 jam cleared",
+                  "salt": "0xa00a82e0c61964552d9090b2227c748006721f3f59a6d09f621b03c2ba3b2d95"
+                }
+              ]
+            }
+          ],
+          "digest": "0x50e33a542a2fea98e16beca771aa09e93e20eb8c3162291edee4233106817d2b"
+        }
+      },
+      "expected": {
+        "refused": "LINK_COPY_MALFORMED"
+      }
+    },
+    {
+      "id": "LC-05",
+      "kind": "link-copy-read",
+      "title": "A copy with an extra member",
+      "input": {
+        "json": {
+          "schema": "record-link-copy/v1",
+          "sealHistory": {
+            "schema": "record-seal-history/v1",
+            "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+            "chain": {
+              "chainId": 296,
+              "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+            },
+            "layout": {
+              "layoutId": 6,
+              "layoutVersion": 1,
+              "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+            },
+            "currentWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+            "entries": [
+              {
+                "seq": 0,
+                "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "newWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "seal": "0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "itemIndex": 0,
+                "itemOpening": "0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578",
+                "merkleProof": [
+                  "0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b",
+                  "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              },
+              {
+                "seq": 1,
+                "previousWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "newWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+                "seal": "0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9",
+                "itemIndex": 1,
+                "itemOpening": "0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7",
+                "merkleProof": [
+                  "0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa",
+                  "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              },
+              {
+                "seq": 2,
+                "previousWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+                "newWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+                "seal": "0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+                "itemIndex": 2,
+                "itemOpening": "0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9",
+                "merkleProof": [
+                  "0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58",
+                  "0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              }
+            ],
+            "pending": [],
+            "ledger": {
+              "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+              "head": "0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f",
+              "batches": [
+                {
+                  "batchId": 6,
+                  "merkleRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                  "blockTime": "2026-09-30T10:00:00.000Z"
+                }
+              ]
+            },
+            "digest": "0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46"
+          },
+          "disclosure": null,
+          "note": "x"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "LINK_COPY_MALFORMED"
+      }
+    },
+    {
+      "id": "LC-06",
+      "kind": "link-copy-read",
+      "title": "A copy of another schema",
+      "input": {
+        "json": {
+          "schema": "record-link-copy/v2",
+          "sealHistory": {
+            "schema": "record-seal-history/v1",
+            "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+            "chain": {
+              "chainId": 296,
+              "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+            },
+            "layout": {
+              "layoutId": 6,
+              "layoutVersion": 1,
+              "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+            },
+            "currentWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+            "entries": [
+              {
+                "seq": 0,
+                "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "newWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "seal": "0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "itemIndex": 0,
+                "itemOpening": "0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578",
+                "merkleProof": [
+                  "0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b",
+                  "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              },
+              {
+                "seq": 1,
+                "previousWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "newWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+                "seal": "0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9",
+                "itemIndex": 1,
+                "itemOpening": "0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7",
+                "merkleProof": [
+                  "0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa",
+                  "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              },
+              {
+                "seq": 2,
+                "previousWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+                "newWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+                "seal": "0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+                "itemIndex": 2,
+                "itemOpening": "0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9",
+                "merkleProof": [
+                  "0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58",
+                  "0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              }
+            ],
+            "pending": [],
+            "ledger": {
+              "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+              "head": "0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f",
+              "batches": [
+                {
+                  "batchId": 6,
+                  "merkleRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                  "blockTime": "2026-09-30T10:00:00.000Z"
+                }
+              ]
+            },
+            "digest": "0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46"
+          },
+          "disclosure": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "LINK_COPY_MALFORMED"
+      }
+    },
+    {
+      "id": "LC-07",
+      "kind": "link-copy-read",
+      "title": "A seals-only copy reads back",
+      "input": {
+        "json": {
+          "schema": "record-link-copy/v1",
+          "sealHistory": {
+            "schema": "record-seal-history/v1",
+            "recordKey": "0x38c459653e9cf7d0d0abb930b472715c0a25114a8dfc431196a2a583451a3386",
+            "chain": {
+              "chainId": 296,
+              "contractAddress": "0xd80969edcc4722c5e467c1c91c31c1bd911ccf50"
+            },
+            "layout": {
+              "layoutId": 6,
+              "layoutVersion": 1,
+              "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8"
+            },
+            "currentWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+            "entries": [
+              {
+                "seq": 0,
+                "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "newWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "seal": "0xd7f90d40a614365248815804428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "itemIndex": 0,
+                "itemOpening": "0x0710eb4c8e13130325b625656bf88344b45e082303d48270e4c19b8ad630e578",
+                "merkleProof": [
+                  "0x95e763748d0e96879cf0ca551add158c20c1106bcfad862953b55c091b0e845b",
+                  "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              },
+              {
+                "seq": 1,
+                "previousWord": "0x000601010000000000000000428774cae669a1bbb5693a063f227ef2cedd8e67",
+                "newWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+                "seal": "0xcca7ae8457d8ae984814e0313df37fd98c8de54d913c7b12858d19bf091989e9",
+                "itemIndex": 1,
+                "itemOpening": "0xc77a89ce1669e74a329df7e0175259e300ca11d99fc8a39cd9c70ad2673ceae7",
+                "merkleProof": [
+                  "0xa20dee01f44531e88a3dd518ecc7b6fb453eb1d106ed7861b97486c00c5297fa",
+                  "0x03d45b43f75ee5a03972f6a1edd6378b59af67488f483cec9ce77a88c455a312"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              },
+              {
+                "seq": 2,
+                "previousWord": "0x0006010200000001000000003df37fd98c8de54d913c7b12858d19bf091989e9",
+                "newWord": "0x000601010000000200000000d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+                "seal": "0x6b227264f9ed474e5ed9fd73d96962fb619b308dc0187ac8fc03d9b3bc7fb1c1",
+                "itemIndex": 2,
+                "itemOpening": "0xc9aefc532467af1df51e67a26f82a6cc866c280edee99309661f6592899557b9",
+                "merkleProof": [
+                  "0x77db575f8315cf7b8342894256c2e45419cb6d46562453029eea5d7ac7544f58",
+                  "0xfcacd4744c283f5364c6136275dc1d062ac3aa80719c8b6b996610d9730f3718"
+                ],
+                "proofRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                "batchId": 6
+              }
+            ],
+            "pending": [],
+            "ledger": {
+              "genesisHead": "0x309352e84abb07e19bc94b2bed850e692720e520d7d06ed79c60f5f7693b7986",
+              "head": "0xedb37f513e13dbf7ce090ac721954646fd7b05464a21636feff7c28b0a28b05f",
+              "batches": [
+                {
+                  "batchId": 6,
+                  "merkleRoot": "0xeab3cc59dcad9e42f3bf5dbb19007a163b8239c0a5b7e6d80162bc86d8faa89a",
+                  "blockTime": "2026-09-30T10:00:00.000Z"
+                }
+              ]
+            },
+            "digest": "0x665002a6840d9932f4d9db6d61be385a8d1eff16c96776e4c996ed1da9a6dd46"
+          },
+          "disclosure": null
+        }
+      },
+      "expected": {
+        "ok": true
+      }
+    }
+  ]
+}
