@@ -1,12 +1,23 @@
 from __future__ import annotations
 
+import json
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import quote, urlencode
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from urllib.parse import quote, unquote, urlencode, urljoin, urlparse
 
 from .client import HttpClient
-from .errors import PacSpaceError, ValidationError
+from .errors import PacSpaceError, ValidationError, map_api_error
 from .fingerprint import BLINDING_FILE_SCHEMA, Blinding, Fingerprint, _digests
+from .record_disclosure import _REASONS as _DISCLOSURE_REASONS
+from .record_disclosure import _disclosure_form_of, verify_record_disclosure_v1
+from .records_words import RecordsEncryptionError
+
+_ENCRYPTION = "/api/v1/records/encryption"
+_GRANT_HEADER = "X-PacSpace-Grant"
+
+
+def _malformed_disclosure() -> PacSpaceError:
+    return PacSpaceError(_DISCLOSURE_REASONS["DISCLOSURE_MALFORMED"](0), 0, "DISCLOSURE_MALFORMED")
 
 DEFAULT_RECORD_TYPE = "machine-action-record"
 
@@ -280,9 +291,199 @@ def _history_entries(history: Dict[str, Any]) -> List[Dict[str, Any]]:
     )
 
 
+def _normalized_handle(handle: str) -> str:
+    return unquote(handle).strip().lower()
+
+
+def _link_refusal(response: Any, path: str) -> PacSpaceError:
+    """A link route's refusal, with the API's own sentence and code."""
+    try:
+        body = json.loads(response.body.decode("utf-8")) if response.body else None
+    except (UnicodeDecodeError, ValueError):
+        body = None
+    nested = body.get("error") if isinstance(body, dict) and isinstance(body.get("error"), dict) else {}
+    message = nested.get("message") or (body.get("message") if isinstance(body, dict) else None)
+    code = nested.get("code") or (body.get("code") if isinstance(body, dict) else None)
+    return map_api_error(
+        response.status_code,
+        message if isinstance(message, str) else str(response.status_code),
+        request_path=path,
+        headers=response.headers,
+        api_error={"code": code if isinstance(code, str) else None},
+    )
+
+
+def _json_of(response: Any) -> Any:
+    try:
+        return json.loads(response.body.decode("utf-8")) if response.body else None
+    except (UnicodeDecodeError, ValueError):
+        return None
+
+
+class _Identity:
+    """This workspace's identity for encrypted records (ADR 0015, N14)."""
+
+    def __init__(self, records: "RecordsResource") -> None:
+        self._records = records
+
+    def register(self) -> Dict[str, Any]:
+        """Draws the seed, registers its public part and the seed wrapped under
+        the current version, and every version's id. Idempotent."""
+        return self._records._encrypted().register_identity()
+
+
+class _Holders:
+    """The workspaces this workspace's keys are wrapped to. Wraps go only to a workspace whose code you confirmed."""
+
+    def __init__(self, records: "RecordsResource") -> None:
+        self._records = records
+
+    def add(
+        self,
+        *,
+        workspace_id: str,
+        scope: str = "workspace",
+        required: bool = False,
+        record: Optional[str] = None,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+        confirmed_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        enc = self._records._encrypted()
+        target = None
+        if scope == "record" and (record is not None or wire_record_id is not None):
+            typed = record_type or DEFAULT_RECORD_TYPE
+            target = (typed, self._records._target(typed, record, {"wire_record_id": wire_record_id})[0])
+        return enc.add_holder(workspace_id, scope, required is True, target, confirmed_code)
+
+    def list(self) -> Dict[str, Any]:
+        return self._records._client.get(f"{_ENCRYPTION}/holders")
+
+    def remove(self, holder_id: str) -> Dict[str, Any]:
+        return self._records._client.delete(f"{_ENCRYPTION}/holders/{quote(holder_id, safe='')}")
+
+
+class _Holdings:
+    """The wraps other workspaces stored for this one."""
+
+    def __init__(self, records: "RecordsResource") -> None:
+        self._records = records
+
+    def list(self) -> Dict[str, Any]:
+        return self._records._client.get(f"{_ENCRYPTION}/holdings")
+
+    def confirm(self) -> List[Dict[str, Any]]:
+        """Opens each stored wrap, checks it, and confirms it or refuses it so the writer is told."""
+        return self._records._encrypted().confirm_holdings()
+
+
+class _Grants:
+    """Grants on a record. A grant to a named workspace of an encrypted record carries the record's key, wrapped to it."""
+
+    def __init__(self, records: "RecordsResource") -> None:
+        self._records = records
+
+    def create(
+        self,
+        *,
+        kind: str,
+        record: Optional[str] = None,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+        encrypted: Optional[bool] = None,
+        recipient_email: Optional[str] = None,
+        counterparty_workspace_id: Optional[str] = None,
+        authorizes: Optional[Any] = None,
+        ttl_hours: Optional[int] = None,
+        max_uses: Optional[int] = None,
+        label: Optional[str] = None,
+        confirmed_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        records = self._records
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, is_encrypted = records._target(typed, record, {"wire_record_id": wire_record_id, "encrypted": encrypted})
+        body: Dict[str, Any] = {"kind": kind}
+        for name, value in (
+            ("recipientEmail", recipient_email),
+            ("counterpartyTenantId", counterparty_workspace_id),
+            ("authorizes", authorizes),
+            ("ttlHours", ttl_hours),
+            ("maxUses", max_uses),
+            ("label", label),
+        ):
+            if value is not None:
+                body[name] = value
+        if is_encrypted and records._configured and kind == "TENANT_BOUND" and counterparty_workspace_id:
+            reader_wrap = records._encrypted().grant_reader_wrap(typed, entity_id, counterparty_workspace_id, confirmed_code)
+            if reader_wrap:
+                body["readerWrap"] = reader_wrap
+        return records._client.post(_record_path(typed, entity_id, "/grants"), body)
+
+    def list(
+        self, *, record: Optional[str] = None, record_type: Optional[str] = None, wire_record_id: Optional[str] = None, encrypted: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, _ = self._records._target(typed, record, {"wire_record_id": wire_record_id, "encrypted": encrypted})
+        return self._records._client.get(_record_path(typed, entity_id, "/grants"))
+
+    def revoke(
+        self,
+        *,
+        grant_id: str,
+        record: Optional[str] = None,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+        encrypted: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, _ = self._records._target(typed, record, {"wire_record_id": wire_record_id, "encrypted": encrypted})
+        return self._records._client.post(_record_path(typed, entity_id, f"/grants/{quote(grant_id, safe='')}/revoke"), {})
+
+
 class RecordsResource:
-    def __init__(self, client: HttpClient) -> None:
+    def __init__(self, client: HttpClient, encryption: Optional[Dict[str, Any]] = None) -> None:
         self._client = client
+        options = encryption or {}
+        self._secret = options.get("secret")
+        self._secret_provider = options.get("secret_provider")
+        self._pin_store = options.get("pin_store")
+        self._enc: Any = None
+        self.identity = _Identity(self)
+        self.holders = _Holders(self)
+        self.holdings = _Holdings(self)
+        self.grants = _Grants(self)
+
+    @property
+    def _configured(self) -> bool:
+        return self._secret is not None or callable(self._secret_provider)
+
+    def _encrypted(self) -> Any:
+        """The encrypted paths, loaded on first use (they run on ``cryptography``)."""
+        if self._enc is None:
+            from .encrypted_records import EncryptedRecords, RecordsKeys
+            from .records_pins import memory_pin_store
+
+            keys = RecordsKeys(self._secret, self._secret_provider)
+            self._enc = EncryptedRecords(self._client, keys, self._pin_store or memory_pin_store())
+        return self._enc
+
+    def _target(self, record_type: str, record: Optional[str], read: Dict[str, Any]) -> Tuple[str, bool]:
+        """The id a read or a write puts in the path, and whether the record is read as encrypted."""
+        if read.get("wire_record_id"):
+            return read["wire_record_id"], True
+        if record is None:
+            return "", False
+        if read.get("encrypted") is False or (not self._configured and read.get("record_key") is None):
+            return record, False
+        return self._encrypted().target(record_type, record, read)
+
+    def wire_id(self, record: str, record_type: Optional[str] = None) -> str:
+        """The wire id PacSpace knows a record by, as a webhook names it. Needs the workspace secret."""
+        return self._encrypted().wire_id(record_type or DEFAULT_RECORD_TYPE, record)
+
+    def wire_reference_id(self, reference_id: str) -> str:
+        """The wire id of an entry's reference id. Needs the workspace secret."""
+        return self._encrypted().wire_reference_id(reference_id)
 
     def emit(
         self,
@@ -302,7 +503,12 @@ class RecordsResource:
         note: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
+        encrypt: Optional[bool] = None,
     ) -> Dict[str, Any]:
+        """Writes one entry. With a workspace secret set, the entry is
+        encrypted (``encrypt=False`` writes plaintext, for records written
+        before) and the answer carries ``recordId``, ``wireRecordId`` and
+        ``wireReferenceId`` beside it."""
         content: Dict[str, Any] = {
             "title": title,
             "occurredAt": occurred_at,
@@ -328,6 +534,20 @@ class RecordsResource:
             del content, payloads
             raise _refusal(reason)
 
+        if self._configured and encrypt is not False:
+            sent = self._encrypted().emit(
+                record_type or DEFAULT_RECORD_TYPE, record, lifecycle or "recorded", content, idempotency_key, options
+            )
+            response = sent["response"] if isinstance(sent["response"], dict) else {}
+            return {
+                **response,
+                "referenceId": idempotency_key,
+                "recordId": record,
+                "wireRecordId": sent["wireRecordId"],
+                "wireReferenceId": sent["wireReferenceId"],
+                "encrypted": True,
+            }
+
         body: Dict[str, Any] = {
             "lifecycle": lifecycle or "recorded",
             "content": content,
@@ -343,33 +563,100 @@ class RecordsResource:
 
     def receipt(
         self,
-        record: str,
+        record: Optional[str],
         entry: int,
         record_type: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
+        *,
+        wire_record_id: Optional[str] = None,
+        grant: Optional[str] = None,
+        holder_for: Optional[str] = None,
+        record_key: Optional[str] = None,
+        encrypted: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        return self._client.get(
-            _record_path(record_type, record, f"/receipts/{_seq_of(entry, 'entry')}"),
-            options,
-        )
+        """One entry's receipt. An encrypted entry is opened with the
+        workspace secret, a holder wrap, a grant's wrap or a record key, and
+        checked against its sealed record hash (``opened``)."""
+        typed = record_type or DEFAULT_RECORD_TYPE
+        read = {"wire_record_id": wire_record_id, "grant": grant, "holder_for": holder_for, "record_key": record_key, "encrypted": encrypted}
+        entity_id, is_encrypted = self._target(typed, record, read)
+        path = _record_path(typed, entity_id, f"/receipts/{_seq_of(entry, 'entry')}")
+        if not is_encrypted:
+            return self._client.get(path, {**(options or {}), "headers": {_GRANT_HEADER: grant}} if grant else options)
+        enc = self._encrypted()
+        response = self._client.get(path, enc.request_options(read, options))
+        receipt = response.get("receipt") if isinstance(response, dict) else None
+        if not isinstance(receipt, dict) or receipt.get("schema") != "semantic-receipt/v4":
+            return response
+        if response.get("recordType") != typed or response.get("entityId") != entity_id:
+            raise RecordsEncryptionError("RECORDS_HISTORY_OTHER_RECORD")
+        return {**response, "opened": enc.open_receipt(receipt, typed, entity_id, read, options)}
 
     def history(
         self,
-        record: str,
+        record: Optional[str],
         from_entry: Optional[int] = None,
         to_entry: Optional[int] = None,
         record_type: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
+        *,
+        wire_record_id: Optional[str] = None,
+        grant: Optional[str] = None,
+        holder_for: Optional[str] = None,
+        record_key: Optional[str] = None,
+        encrypted: Optional[bool] = None,
     ) -> Dict[str, Any]:
+        """The record's history. An encrypted record's entries are opened and
+        each checked against its sealed record hash and its stored references
+        (``opened``); a history served for another record is refused."""
+        read = {"wire_record_id": wire_record_id, "grant": grant, "holder_for": holder_for, "record_key": record_key, "encrypted": encrypted}
+        return self._read_history(record, from_entry, to_entry, record_type, options, read, "/history")
+
+    def bundle(
+        self,
+        record: Optional[str],
+        from_entry: Optional[int] = None,
+        to_entry: Optional[int] = None,
+        record_type: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+        *,
+        wire_record_id: Optional[str] = None,
+        grant: Optional[str] = None,
+        holder_for: Optional[str] = None,
+        record_key: Optional[str] = None,
+        encrypted: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """The history as the downloadable file; opened as ``history()`` opens it."""
+        read = {"wire_record_id": wire_record_id, "grant": grant, "holder_for": holder_for, "record_key": record_key, "encrypted": encrypted}
+        return self._read_history(record, from_entry, to_entry, record_type, options, read, "/bundle")
+
+    def _read_history(
+        self,
+        record: Optional[str],
+        from_entry: Optional[int],
+        to_entry: Optional[int],
+        record_type: Optional[str],
+        options: Optional[Dict[str, Any]],
+        read: Dict[str, Any],
+        route: str,
+    ) -> Dict[str, Any]:
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, is_encrypted = self._target(typed, record, read)
         query: Dict[str, Any] = {}
         if from_entry is not None:
             query["fromSeq"] = _seq_of(from_entry, "from_entry")
         if to_entry is not None:
             query["toSeq"] = _seq_of(to_entry, "to_entry")
-        suffix = "/history"
+        suffix = route
         if query:
             suffix += "?" + urlencode(query)
-        raw = self._client.get_raw(_record_path(record_type, record, suffix), options)
+        if is_encrypted:
+            request_options = self._encrypted().request_options(read, options)
+        elif read.get("grant"):
+            request_options = {**(options or {}), "headers": {_GRANT_HEADER: read["grant"]}}
+        else:
+            request_options = options
+        raw = self._client.get_raw(_record_path(typed, entity_id, suffix), request_options)
         body = raw["body"] if isinstance(raw, dict) and "body" in raw else raw
         headers = raw.get("headers") if isinstance(raw, dict) else {}
         if isinstance(body, dict):
@@ -381,7 +668,169 @@ class RecordsResource:
                     body = {**body, "nextFromSeq": int(next_from)}
                 except (TypeError, ValueError):
                     body = {**body, "nextFromSeq": next_from}
-        return body
+        if not is_encrypted or not isinstance(body, dict) or body.get("schema") != "record-history-bundle/v3":
+            return body
+        opened, _ = self._encrypted().open_history(body, typed, entity_id, read, options)
+        return {**body, "opened": [{"entry": e["entry"], "recordHash": e["recordHash"], "content": e["content"]} for e in opened]}
+
+    def keep_copy(
+        self,
+        record: Optional[str] = None,
+        *,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+        encrypted: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """A copy of one encrypted record (pacspace-record-copy/v1): its
+        history with its record key, for a reader with no workspace. Whoever
+        holds the file can read the record."""
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, is_encrypted = self._target(typed, record, {"wire_record_id": wire_record_id, "encrypted": encrypted})
+        if not is_encrypted:
+            raise RecordsEncryptionError("RECORDS_NOT_ENCRYPTED")
+        enc = self._encrypted()
+        key, history = enc.own_record_key(typed, entity_id, options)
+        if history is None:
+            raise RecordsEncryptionError("RECORDS_NOT_ENCRYPTED")
+        enc.open_history(history, typed, entity_id, {}, options)
+        return {"schema": "pacspace-record-copy/v1", "bytes": enc.copy_of(history, key)}
+
+    def record_key(
+        self,
+        record: Optional[str] = None,
+        *,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+        encrypted: Optional[bool] = None,
+    ) -> str:
+        """One record's key, base64url, for a recipient with no workspace:
+        with a grant on the record they read it as ``history(None,
+        wire_record_id=..., grant=..., record_key=...)``. It opens this record only."""
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, is_encrypted = self._target(typed, record, {"wire_record_id": wire_record_id, "encrypted": encrypted})
+        if not is_encrypted:
+            raise RecordsEncryptionError("RECORDS_NOT_ENCRYPTED")
+        enc = self._encrypted()
+        key, _ = enc.own_record_key(typed, entity_id, options)
+        return enc.export_record_key(key)
+
+    def share_key_wrap(
+        self,
+        *,
+        handle: str,
+        disclosure_key: Union[bytes, str],
+        workspace_id: str,
+        confirmed_code: Optional[str] = None,
+        record: Optional[str] = None,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Stores a disclosure link's key wrapped to a reader workspace whose
+        code you confirmed, so it opens the link without the part after #."""
+        from .encrypted_records import disclosure_key_of
+
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, _ = self._target(typed, record, {"wire_record_id": wire_record_id})
+        key = disclosure_key_of(disclosure_key)
+        if key is None:
+            raise RecordsEncryptionError("RECORDS_LINK_NO_KEY")
+        normalized = _normalized_handle(handle)
+        body = self._encrypted().disclosure_wrap(normalized, key, workspace_id, confirmed_code)
+        return self._client.put(_record_path(typed, entity_id, f"/share/{quote(normalized, safe='')}/key-wraps"), body, options)
+
+    def open(self, link: str, access_code: Optional[str] = None) -> Dict[str, Any]:
+        """Opens a disclosure link: its seal history and its disclosure,
+        opened with the key after # or, when there is none, with this
+        workspace's wrap, then checked up to each entry's record hash. The
+        seals and the ledger are not checked here."""
+        from .encrypted_records import decrypt_disclosure, read_disclosure_fragment
+
+        url = urlparse(urljoin(self._client.base_url + "/", link))
+        found = re.search(r"/c/([^/]+)/?$", url.path)
+        if found is None:
+            raise _malformed_disclosure()
+        handle = _normalized_handle(found.group(1))
+
+        def path(tail: str) -> str:
+            return f"/api/v1/c/{quote(handle, safe='')}{tail}"
+
+        headers = {"Accept": "application/json"}
+        if access_code:
+            verified = self._client.request_public(
+                "POST",
+                path("/access/verify"),
+                {**headers, "Content-Type": "application/json"},
+                json.dumps({"factor": "ACCESS_HINT", "value": access_code}),
+            )
+            if not 200 <= verified.status_code < 300:
+                raise _link_refusal(verified, path("/access/verify"))
+            cookie = (verified.headers.get("set-cookie") or "").split(";")[0]
+            if cookie:
+                headers["Cookie"] = cookie
+        seals = self._client.request_public("GET", path("/history"), {**headers, "X-Record-Entries": "all"})
+        if not 200 <= seals.status_code < 300:
+            raise _link_refusal(seals, path("/history"))
+        form = _json_of(seals)
+        if not isinstance(form, dict):
+            raise _malformed_disclosure()
+        answer = self._client.request_public("GET", path("/disclosure"), headers)
+        served = _json_of(answer) if 200 <= answer.status_code < 300 else None
+        envelope = served.get("envelope") if isinstance(served, dict) else None
+        if not isinstance(envelope, str):
+            return {"handle": handle, "sealHistory": form, "disclosure": None, "entries": []}
+
+        key = read_disclosure_fragment("#" + url.fragment) if url.fragment else None
+        if key is None and self._configured:
+            key = self._encrypted().disclosure_key_from_wrap(handle)
+        if key is None:
+            raise RecordsEncryptionError("RECORDS_LINK_NO_KEY")
+        opened = decrypt_disclosure(envelope, key, handle)
+        if not opened["ok"]:
+            raise PacSpaceError(opened["reason"], 0, opened["code"])
+        disclosure = opened["disclosure"]
+        disclosure_form = _disclosure_form_of(form, disclosure)
+        if disclosure_form is None:
+            raise _malformed_disclosure()
+        checked = verify_record_disclosure_v1(disclosure_form, disclosure)
+        if checked["ok"] is False:
+            raise PacSpaceError(checked["reason"] or checked["code"], 0, checked["code"])
+        return {
+            "handle": handle,
+            "sealHistory": form,
+            "disclosure": disclosure,
+            "entries": [
+                {"entry": e["seq"] + 1, "fields": e["fields"], "content": e["content"], "withheld": e["withheld"]} for e in checked["entries"]
+            ],
+            "chainCheck": checked["chainCheck"],
+            "chainCheckNote": checked["chainCheckNote"],
+        }
+
+    def rotate(self, next_keyring: str) -> Dict[str, Any]:
+        """Moves to the next workspace secret: registers its new version,
+        wraps that version's key to every workspace holder whose pin is held,
+        and wraps this workspace's seed under it. Writes under it wait for
+        required holders to confirm."""
+        return self._encrypted().rotate(next_keyring)
+
+    def rekey(
+        self,
+        *,
+        to_version: int,
+        record: Optional[str] = None,
+        record_type: Optional[str] = None,
+        wire_record_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Re-encrypts a record's stored entries under a newer version, latest
+        first; seals and record hashes are unchanged. Then wraps the record's
+        new key to its grants and record holders whose pins are held."""
+        typed = record_type or DEFAULT_RECORD_TYPE
+        entity_id, is_encrypted = self._target(typed, record, {"wire_record_id": wire_record_id})
+        if not is_encrypted:
+            raise RecordsEncryptionError("RECORDS_NOT_ENCRYPTED")
+        return self._encrypted().rekey(typed, entity_id, to_version)
 
     def check(
         self,

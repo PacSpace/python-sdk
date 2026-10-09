@@ -1322,16 +1322,18 @@ class RecordsCheckReadsV2AndKindsTest(unittest.TestCase):
 
 
 class DependencyFreeTest(unittest.TestCase):
-    """The SDK imports only the standard library; cryptography is test-only (L1d)."""
+    """The SDK's one runtime dependency is cryptography (L2a2), imported by
+    records_asymmetric.py and encrypted_records.py (L2d3), which records.py
+    loads on an encrypted path only; everything else is the standard library."""
 
     PACKAGE = Path(__file__).resolve().parent.parent / "pacspace_sdk"
+    CRYPTOGRAPHY_ONLY_IN = {"records_asymmetric.py", "encrypted_records.py"}
 
-    def test_pyproject_has_no_dependencies(self) -> None:
+    def test_pyproject_declares_cryptography_only(self) -> None:
         text = (self.PACKAGE.parent / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertRegex(text, r"(?m)^dependencies = \[\]$")
-        self.assertNotIn("cryptography", text)
+        self.assertRegex(text, r'(?m)^dependencies = \["cryptography>=48"\]$')
 
-    def test_the_package_imports_only_the_standard_library(self) -> None:
+    def test_the_package_imports_the_standard_library_and_cryptography_where_named(self) -> None:
         import ast
         import sys
 
@@ -1339,6 +1341,7 @@ class DependencyFreeTest(unittest.TestCase):
         outside = []
         for path in sorted(self.PACKAGE.rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
+            allowed = stdlib | ({"cryptography"} if path.name in self.CRYPTOGRAPHY_ONLY_IN else set())
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     names = [alias.name for alias in node.names]
@@ -1346,14 +1349,61 @@ class DependencyFreeTest(unittest.TestCase):
                     names = [node.module]
                 else:
                     continue
-                outside.extend(f"{path.name}: {name}" for name in names if name.split(".")[0] not in stdlib)
+                outside.extend(f"{path.name}: {name}" for name in names if name.split(".")[0] not in allowed)
         self.assertEqual(outside, [])
+
+    def test_no_module_imports_records_asymmetric(self) -> None:
+        import ast
+
+        importers = []
+        for path in sorted(self.PACKAGE.rglob("*.py")):
+            if path.name in self.CRYPTOGRAPHY_ONLY_IN:
+                continue
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.ImportFrom) and (node.module or "").endswith("records_asymmetric"):
+                    importers.append(path.name)
+                elif isinstance(node, ast.ImportFrom) and any(alias.name == "records_asymmetric" for alias in node.names):
+                    importers.append(path.name)
+        self.assertEqual(importers, [])
+
+    def test_a_client_with_no_workspace_secret_never_loads_cryptography(self) -> None:
+        import subprocess
+        import sys
+
+        script = (
+            "import sys, pacspace_sdk\n"
+            "p = pacspace_sdk.PacSpace('pk_test_x', base_url='https://example.test')\n"
+            "pacspace_sdk.generate_workspace_secret()\n"
+            "print(any(m.split('.')[0] == 'cryptography' for m in sys.modules))\n"
+        )
+        out = subprocess.run([sys.executable, "-c", script], cwd=self.PACKAGE.parent, capture_output=True, text=True, check=True)
+        self.assertEqual(out.stdout.strip(), "False")
 
 
 from test_selective_disclosure_vectors import (  # noqa: E402 - run by the command CI and publish.yml use
     DisclosureResultTest,
     LinkCopyTest,
     SelectiveDisclosureVectorsTest,
+)
+from test_records_encryption_vectors import (  # noqa: E402 - run by the command CI and publish.yml use
+    RecordsEncryptionRoundTripTest,
+    RecordsEncryptionVectorsTest,
+)
+from test_records_asymmetric_vectors import (  # noqa: E402 - run by the command CI and publish.yml use
+    RecordsAsymmetricRoundTripTest,
+    RecordsAsymmetricVectorsTest,
+)
+from test_records_encrypted import (  # noqa: E402 - run by the command CI and publish.yml use
+    AdmissionTest,
+    EncryptedEmitTest,
+    EncryptedReadTest,
+    InterceptionTest,
+    OpenLinkTest,
+    PinsHoldersGrantsTest,
+    RefusedAfterRekeyTest,
+    RotateAndRekeyTest,
+    WordsTest,
+    WorkspaceSecretTest,
 )
 
 

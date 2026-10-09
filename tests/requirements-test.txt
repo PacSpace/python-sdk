@@ -1,5 +1,6 @@
-# Test-only: the envelope vectors are opened with cryptography (tests/test_selective_disclosure_vectors.py).
-# Never a runtime dependency (pyproject.toml keeps dependencies = []). Hashes cover every wheel for Python 3.10 to 3.13.
+# cryptography for the tests: the envelope vectors are opened with it (tests/test_selective_disclosure_vectors.py),
+# and records_asymmetric.py runs on it (pyproject.toml declares cryptography>=48, the SDK's one runtime dependency).
+# Hashes cover every wheel for Python 3.10 to 3.13.
 # Install with: pip install --require-hashes -r tests/requirements-test.txt
 # Regenerate with: uv pip compile --universal --python-version 3.10 --generate-hashes --no-header (input: cryptography)
 cffi==2.1.1 ; platform_python_implementation != 'PyPy' \

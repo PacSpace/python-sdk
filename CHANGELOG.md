@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 - 2026-10-09
+
+### Added
+
+- Added generate_workspace_secret() and next_workspace_secret(), and the records.secret and records.secret_provider options.
+- With a workspace secret set, records.emit() encrypts new records and returns both the record id and the wire record id; records.wire_id() gives the wire id for a webhook handler.
+- records.history(), records.receipt() and records.bundle() open encrypted records with the workspace secret, a holder wrap or a record key, and check each entry against its sealed record hash.
+- Added records.keep_copy(), records.record_key() and records.open(link, access_code).
+- Added records.identity, records.holders, records.holdings and records.grants, with a pin store: wraps go only to workspaces whose code you confirmed.
+- Added records.rotate() and records.rekey().
+
 ## 0.5.0 - 2026-10-02
 
 - **fingerprint() now blinds by default and returns a Fingerprint with .ref and .blinding. Pass .ref as the payload, and save .blinding with write_blinding_file beside the file: a blinded entry can be checked only with it.**

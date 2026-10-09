@@ -150,8 +150,38 @@ class HttpClient:
     ) -> Any:
         return self._request("POST", path, body, options, authenticated=True)
 
+    def put(
+        self,
+        path: str,
+        body: Optional[Dict[str, Any]] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        return self._request("PUT", path, body, options, authenticated=True)
+
+    def delete(self, path: str, options: Optional[Dict[str, Any]] = None) -> Any:
+        return self._request("DELETE", path, None, options, authenticated=True)
+
     def get_public(self, path: str) -> Any:
         return self._request("GET", path, None, None, authenticated=False)
+
+    def request_public(
+        self,
+        method: str,
+        path: str,
+        headers: Dict[str, str],
+        body: Optional[str] = None,
+    ) -> TransportResponse:
+        """One unauthenticated request, answered as it came: no retry, no unwrapping."""
+        if self._closed:
+            raise PacSpaceError(getattr(self, "_close_reason", "Client closed"), 0, "CLIENT_CLOSED", path)
+        try:
+            return self._transport(method, f"{self._base_url}{path}", dict(headers), body, self._timeout)
+        except Exception as exc:
+            raise PacSpaceError(f"Network error: {exc}", 0, "NETWORK_ERROR", path) from exc
+
+    @property
+    def base_url(self) -> str:
+        return self._base_url
 
     def _request(
         self,
@@ -227,6 +257,9 @@ class HttpClient:
                 headers=response.headers,
                 api_error=error_payload,
             )
+            if isinstance(parsed, dict):
+                nested = parsed.get("error")
+                mapped.api_body = nested if isinstance(nested, dict) else parsed
 
             if (
                 mapped.status_code not in RETRYABLE_STATUS_CODES
@@ -247,7 +280,7 @@ class HttpClient:
     ) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "pacspace-sdk-python/0.5.0",
+            "User-Agent": "pacspace-sdk-python/0.6.0",
         }
         if authenticated:
             headers["X-Api-Key"] = self._api_key
@@ -270,6 +303,9 @@ class HttpClient:
         dashboard_token = (options or {}).get("dashboardToken")
         if dashboard_token:
             headers["Authorization"] = f"Bearer {dashboard_token}"
+        extra = (options or {}).get("headers")
+        if isinstance(extra, dict):
+            headers.update({str(k): str(v) for k, v in extra.items()})
         return headers
 
     def _extract_api_error(

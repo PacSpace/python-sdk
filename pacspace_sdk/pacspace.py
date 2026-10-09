@@ -35,7 +35,12 @@ class PacSpace:
         webhook_secret: Optional[str] = None,
         submission: Optional[Dict[str, Any]] = None,
         transport: Optional[Any] = None,
+        records: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """``records``: ``{"secret": ...}`` (the workspace secret file's text,
+        or its parsed dict) or ``{"secret_provider": ...}`` (a function
+        returning the same, called once), and ``pin_store``. Without a secret
+        the SDK writes records as 0.5.0 does."""
         self._client = HttpClient(
             ClientConfig(
                 api_key=api_key,
@@ -51,7 +56,7 @@ class PacSpace:
         )
         self.balance = BalanceResource(self._client, submission_options=submission)
         self.customers = CustomersResource(self._client)
-        self.records = RecordsResource(self._client)
+        self.records = RecordsResource(self._client, records)
         self.webhooks = Webhooks(webhook_secret) if webhook_secret else None
 
     def close(self, reason: str = "SDK closed") -> None:
