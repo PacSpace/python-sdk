@@ -11,7 +11,6 @@ import base64
 import copy
 import json
 import os
-import re
 import stat
 import tempfile
 import unittest
@@ -584,13 +583,6 @@ class WordsTest(unittest.TestCase):
             RECORDS_ENCRYPTION_WORDS["RECORDS_SECRET_REQUIRED"],
             "Encrypted records need the workspace secret. Pass it as records.secret or records.secretProvider.",
         )
-
-    def test_the_sentences_equal_the_typescript_sdks(self) -> None:
-        from records_encrypted_support import REPO
-
-        source = (REPO / "packages/sdk/src/records-encryption/words.ts").read_text(encoding="utf-8")
-        typescript = dict(re.findall(r"^\s+(RECORDS_[A-Z_]+): ['\"](.+)['\"],$", source, re.MULTILINE))
-        self.assertEqual(typescript, RECORDS_ENCRYPTION_WORDS)
 
 
 class InterceptionTest(unittest.TestCase):

@@ -19,15 +19,17 @@ from pacspace_sdk import records_asymmetric as A
 from pacspace_sdk import records_encryption as R
 from pacspace_sdk.client import TransportResponse
 
-REPO = Path(__file__).resolve().parents[3]
-VECTORS = json.loads((Path(__file__).resolve().parent / "vectors" / "records-encryption-v1.json").read_text(encoding="utf-8"))
+# Byte-for-byte copies of the monorepo's fixtures (scripts/docs/python-sdk-test-files.test.mjs
+# holds them equal): the public repository receives only pacspace_sdk/ and tests/.
+HERE = Path(__file__).resolve().parent / "vectors"
+VECTORS = json.loads((HERE / "records-encryption-v1.json").read_text(encoding="utf-8"))
 VECTOR_KEYRING: str = VECTORS["fixtures"]["keyring"]
 VECTOR_KEYRING_V1: str = json.dumps({"schema": "pacspace-workspace-secret/v1", "secrets": [json.loads(VECTOR_KEYRING)["secrets"][0]]})
 
 
 def admission_cases() -> List[Tuple[Dict[str, Any], Any]]:
     """Each case of record-admission-cases-v1.json with its content built."""
-    doc = json.loads((REPO / "scripts/records/__fixtures__/record-admission-cases-v1.json").read_text(encoding="utf-8"))
+    doc = json.loads((HERE / "record-admission-cases-v1.json").read_text(encoding="utf-8"))
     out = []
     for case in doc["cases"]:
         if "content" in case:
@@ -43,11 +45,11 @@ def admission_cases() -> List[Tuple[Dict[str, Any], Any]]:
 
 
 def door_proof_bundle() -> Dict[str, Any]:
-    return json.loads((REPO / "scripts/records/__fixtures__/encrypted-door-proof-sandbox-v1.json").read_text(encoding="utf-8"))
+    return json.loads((HERE / "encrypted-door-proof-sandbox-v1.json").read_text(encoding="utf-8"))
 
 
 def disclosure_link() -> Dict[str, Any]:
-    return json.loads((REPO / "apps/frontend/src/__tests__/fixtures/disclosure-fixture.json").read_text(encoding="utf-8"))
+    return json.loads((HERE / "disclosure-fixture.json").read_text(encoding="utf-8"))
 
 
 def _answer(status: int, body: Any, headers: Optional[Dict[str, str]] = None) -> TransportResponse:

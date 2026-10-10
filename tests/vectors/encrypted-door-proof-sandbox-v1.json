@@ -1,0 +1,311 @@
+{
+  "schema": "record-history-bundle/v3",
+  "recordKey": "0xde7880227016b4fdeac2868bd7a2b5f98d943657b11f3784e7a8a79da561b1a0",
+  "chain": {
+    "chainId": 296,
+    "contractAddress": "0x2f4f20bc6c1cc202384646e3d0cf8b417c8f58df"
+  },
+  "layout": {
+    "schema": "layout-document/v1",
+    "layoutId": 6,
+    "layoutVersion": 1,
+    "name": "machine-action-record/v1",
+    "recordTypeId": "machine-action-record",
+    "encodingVersion": 1,
+    "stateBits": 96,
+    "sealBits": 160,
+    "public": false,
+    "recordAttempts": true,
+    "fields": [
+      {
+        "name": "layoutId",
+        "type": "counter",
+        "bits": 16,
+        "fixed": 6
+      },
+      {
+        "name": "layoutVersion",
+        "type": "counter",
+        "bits": 8,
+        "fixed": 1
+      },
+      {
+        "name": "lifecycle",
+        "type": "enum",
+        "bits": 8,
+        "values": {
+          "recorded": 1,
+          "amended": 2,
+          "closed": 3
+        }
+      },
+      {
+        "name": "flags",
+        "type": "flags",
+        "bits": 8,
+        "bitNames": {
+          "transition_not_applied": 0,
+          "delivery_failed": 1
+        }
+      },
+      {
+        "name": "seq",
+        "type": "counter",
+        "bits": 24
+      },
+      {
+        "name": "reserved",
+        "type": "reserved",
+        "bits": 32
+      }
+    ],
+    "lifecycle": {
+      "field": "lifecycle",
+      "genesis": [
+        "recorded"
+      ],
+      "terminal": [
+        "closed"
+      ],
+      "transitions": {
+        "recorded": [
+          "recorded",
+          "amended",
+          "closed"
+        ],
+        "amended": [
+          "recorded",
+          "amended",
+          "closed"
+        ],
+        "closed": []
+      }
+    },
+    "sealedRecordSchema": "record-content/machine-action-record/v1",
+    "notes": [
+      "The general layout (records buyer posture plan, D1 and D2): one record per thing a machine did or produced, one entry per event in that record's life. Every ordinary entry is the transition recorded to recorded.",
+      "Three lifecycle words: recorded, amended, closed. A transition the table forbids, for example any word after closed, is recorded as an attempt with transition_not_applied set (recordAttempts); nothing is refused at intake for that reason.",
+      "Nothing about the content is public: the state region carries one of three words, two flags, and the entry number. The title, the time, who acted, the payload fingerprints, and every reference are in the sealed record.",
+      "Sealed references[] generalize modelRecordRef: each names one entry of one record as { recordKey, seq }; amends names the entry this one supersedes and is checked by the same rule that checks Balance adjusts (D17).",
+      "Not public: this document is served on the public layout endpoint only when counsel confirms capture; the chain 296 registration card registers it, the chain 295 card (public layouts only) does not."
+    ]
+  },
+  "currentWord": "0x0006010301000003000000003caff12add404e4ba7c6bd0a4335bb7a2cd8b700",
+  "receipts": [
+    {
+      "schema": "semantic-receipt/v4",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xde7880227016b4fdeac2868bd7a2b5f98d943657b11f3784e7a8a79da561b1a0",
+      "seq": 0,
+      "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "newWord": "0x000601010000000000000000d0f7573b222d90f4d33ca46f378adee681ac04b4",
+      "layoutId": 6,
+      "layoutVersion": 1,
+      "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8",
+      "recordHash": "0x0bd0c03abaf372ec3bea2066216427f719eadc04d49267c4e1199e9c41466b86",
+      "envelopes": [
+        {
+          "v": 1,
+          "ct": "JhZ2DIc1NDH1qErNjaLATe5tsYxgaSRMgEircWN6wL_ERDsG4fsMhCbu-nbDSubmZwWZ9AnlE_qiWrW_A-xSbdXOJaizXPu1x3rhEcxha6A_Xaq_e8HDvauhUPgDv4yBnbSz9a_gD1LSH1kvZmDdv_pimUMQmGA5x26-tTAIGRnEd3oTyBirkxopeiXqTbUGM3Ptgws_MIUNANosEE1VHiDwFEplIxsUeXP0GCf5Ol1l4OJMl65CFCxmqz9AtSE9ZGKUFqRb-95NKjCKfuxZH0ZN7l2XTKZJlS7cMLLMLkJDfguAFQee38ZdAKbCmL0wLC_b_6s9hnUm4U_M-yj4umHW-gtGl0T4VjJzp3lX6nYpGATHnFXCD1201dlD7pIce_ZYOkN37YYDQHBPD3fIqqlhRvlaf_pwnxpeW-7GtkXgNuYozKm_FFol3o73_OJSsuH5bwTvI4V7AaQSIic6H0QFm5hRjV6OoRBv5c8xnHAvqM7oIB3BXuf5YNZizDThsH7V3Y_NYefwAIqCEmj6XdZepV6wO2JOYLWl1TqnCG_29LmMlexPrIeqBHgtYYDIe0kYGee2-pgKvqGk-wu-MZMW6LpntXhS0m3hrbFAYm8m-wSzXZJYglxeRci_NCOlvAKyGCEdcK6nfWzn4J6b84t_9lgNB7s_gBnf3VPQ6B50Qroiy7CRYn6bo0hBWCik",
+          "iv": "nCzIYwxi9LlQQ73-",
+          "alg": "A256GCM",
+          "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      ],
+      "recordOpening": "0xf47f5e43c53583ab26b08b08e7b79086df68ef598782b7aeee81a88ffc3cdc96",
+      "itemIndex": 0,
+      "itemOpening": "0xd1703f66578dd4338802995e2a6633a001c54639fa54bd8c3c6ba03b5b7c3590",
+      "merkleProof": [],
+      "proofRoot": "0xd6c924d6b0728758a818f4a4199ca996807ad57d65a4bd6ae455d451ab8c42fa",
+      "batchId": 0,
+      "previousHead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "ledgerHead": "0xf5b423a1ed070c81e2cd17fb449a03daf975d54b51f988697032fb9cd59d3771",
+      "receiptId": "cmuur8pxg000vs601zfmug0mv",
+      "status": "committed"
+    },
+    {
+      "schema": "semantic-receipt/v4",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xde7880227016b4fdeac2868bd7a2b5f98d943657b11f3784e7a8a79da561b1a0",
+      "seq": 1,
+      "previousWord": "0x000601010000000000000000d0f7573b222d90f4d33ca46f378adee681ac04b4",
+      "newWord": "0x000601020000000100000000cb58a41c06db947b2842f944a4be3e2af56992cb",
+      "layoutId": 6,
+      "layoutVersion": 1,
+      "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8",
+      "recordHash": "0x9920c0426f2d6f228950664b49a6284d20b6f37d8681f5cbfc61157aa935ab63",
+      "envelopes": [
+        {
+          "v": 1,
+          "ct": "Q975dvm5DxiQ7ZiDh1Ptmb78llPDF5HujFM8VRv4bQLwtYCji6YtWlskcENhuKvrYKtmvTkiFbUqaHCSf5u5BkEVCAyN75Az7FKrR35qXKK_V9OL3tcv3Ra-R1MLuwwVkAGqkq40i3JhhINffBhNYCVQyWOGQqSosioKJYS4IQ5tjqwxlAvcnUfG_bE_X2ZtMzZSKuCTEEn4EgUkjnAGdFXn65kWm7sPn92WdgZCS7pGuzyjkLABGCeObl0YAk8Ibl6Jx0xOZPLUNs6WQAFbacsDyFMawhsRREV1M2aKHlfL5ebDxDn9PnonyO_eihXrilKgj-E7ZWjFaYY7_Tct41oDkTDpmAWu5Z1BXnzsWTOZLlEk2bZunvlq9X_iOdkVONpqWhFQcV1rm98aZ95OpLpdJpMsrQ5CrA5EZn8N-At2As9quJcNZfbchk3KCUVEUWz7J0YRZSP4GomeiHB93zsR6SYMtMkSAJSVHEvhGEWwKzKRTemb4oowdSeQtC3VG9OOpchHFzr8dc-xQfZObgeQs2j94aYf0BsFrJdF4Tdb5oUX_XGNbBAZVqHScpvxhb2vkmsQZpa5VKjZ4t3AfWu5JlQMUc5eNqFv33QvLpj3xAZ2fwHr0-9Hl2KGI7NHninAO1eBrJQORPp8XgHUuVGEubwKweszx0hWnjpSGQ9G8kazCc9DKrdc5WWRE3zI",
+          "iv": "BUdUcvsFzzCCfILD",
+          "alg": "A256GCM",
+          "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      ],
+      "amends": {
+        "seq": 0,
+        "recordKey": "0xde7880227016b4fdeac2868bd7a2b5f98d943657b11f3784e7a8a79da561b1a0"
+      },
+      "recordOpening": "0x29fb54e676a73b26e15dd47f803853425a2d99d0cab4f986d2dc7955fc9bf923",
+      "itemIndex": 0,
+      "itemOpening": "0x2cd012a12b70eadced6681a7ebd5cf3b835104f5a16771a3745545af64073fa1",
+      "merkleProof": [],
+      "proofRoot": "0x3f081432cbecae8877c0e05003b8f736fef299493c34b7365e3b6c2b54631f75",
+      "batchId": 1,
+      "previousHead": "0xf5b423a1ed070c81e2cd17fb449a03daf975d54b51f988697032fb9cd59d3771",
+      "ledgerHead": "0x969c72ad77dfdc784c62a49764129f2fd2d76af4331b54f31d9a5a29f7f36fe4",
+      "receiptId": "cmuur94fb0013s601zwuhoj2e",
+      "status": "committed"
+    },
+    {
+      "schema": "semantic-receipt/v4",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xde7880227016b4fdeac2868bd7a2b5f98d943657b11f3784e7a8a79da561b1a0",
+      "seq": 2,
+      "previousWord": "0x000601020000000100000000cb58a41c06db947b2842f944a4be3e2af56992cb",
+      "newWord": "0x000601030000000200000000954f0889a1254468a8a68439929a4d9c8bd1c56b",
+      "layoutId": 6,
+      "layoutVersion": 1,
+      "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8",
+      "recordHash": "0x1e3e1a22e196b68924655d82557a8f89da6643e4c0127f29ef55c9cc67cf1f5b",
+      "envelopes": [
+        {
+          "v": 1,
+          "ct": "ANf-IK5p5apIa7uWiNE_sg5SnvPDQ3CJZa5HGtfW1TFEz5Z_B55eYMJG0w9Hc4XNsexPpxNWdlDXjjUwMZ9J8XTO6Fal69sXbEqpdGiFzqyx2WYlaF1JVukrnyXJCAdTZKpwQAaTVyJovKmvu6Z-qckccdFXQBx_eNNamNcCxHSPpzSwlIWS3Y81DRJ9vFZgUPfOV9vtag0J8ETQ_YpHxwEENsH7D_H3QMa7a1BEJqS5T2gYtpQtM-jRnOxZbik5jIqjm2Vo5jpQxko_ESLVPpdM8aZ6G7L9pYBRUHV33kU7iPiSH5sBgnTLzFJLW9Gd1wN7yaeEA3DBtx_M_n4_hd67wZG0sP9NXSxa8G_-4uFPhr9Kdj3hH7mRCv0dUfn2r1omlWYWMAr-bYund36HNhcWiDEp9d1XRKFrwW1vLN2hhzYUhK76Q5IBj08j-rgaaNOIwR5y2Jplsa3wLo26uzemAHJ7MTPvwOwwVU02VwLue9oYE8UkMylbPmS4c3v99pIfnkc06sTIzKHrn3Gn5ie8G-alGVa3kXeQwg3fA6nvXJ_4K_lOhIaAfWj4thL66qzNhj-QizW-CIppyHODWWMSiOEYshmjMnwP48tcusFu0VCbaSw5H3J9vxPAWMW-IQqveEbC-crqbzEAtQp17VjHWJJ2wFfpnQ9znqU_55R1K0KFBWPOyXi0syljZJfU",
+          "iv": "qqsUEWphDogX4RZL",
+          "alg": "A256GCM",
+          "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      ],
+      "recordOpening": "0xdb4239ec24877be1f6b9b3048823b74a49384a107bcb6d391c4ec5cc90f9eac9",
+      "itemIndex": 0,
+      "itemOpening": "0x0ebc1fe0302b3ff9134799af364ae5acba83b0bfab4e0c3924efbd40aafa9fe9",
+      "merkleProof": [],
+      "proofRoot": "0xcaad7888a77177f79137b480bf8ce517df7e2fb61317f607ee4e539c0e5ad64c",
+      "batchId": 2,
+      "previousHead": "0x969c72ad77dfdc784c62a49764129f2fd2d76af4331b54f31d9a5a29f7f36fe4",
+      "ledgerHead": "0x69d03fee19dd66db0f97b033fa9ceb4014e99e1e120fb37ec99d7f1613da191b",
+      "receiptId": "cmuur9i7r0019s601jusvr0ev",
+      "status": "committed"
+    },
+    {
+      "schema": "semantic-receipt/v3",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xde7880227016b4fdeac2868bd7a2b5f98d943657b11f3784e7a8a79da561b1a0",
+      "seq": 3,
+      "previousWord": "0x000601030000000200000000954f0889a1254468a8a68439929a4d9c8bd1c56b",
+      "newWord": "0x0006010301000003000000003caff12add404e4ba7c6bd0a4335bb7a2cd8b700",
+      "layoutId": 6,
+      "layoutVersion": 1,
+      "layoutDigest": "0xf04dc41452339d1c37cef2132a20912104e23258719742e50934967be67c4df8",
+      "leaves": [
+        "0x8475e969d5fa2168e3a4d0ea856a2b57e92f4ad94f8117df35f11549bf961c39",
+        "0x98c3bbd045d5748c9657140535b91e4c767c326d44708b04d1ee9de9893d790f",
+        "0xd1a67c12d4af9aabe89c8040f8a76609e1758430fe2544c3cb67ef12b634c6bf"
+      ],
+      "revealed": [
+        {
+          "pointer": "/attemptedTarget",
+          "value": "recorded",
+          "salt": "0x7f519336f4eba7038e0db3dbf1d455303ca3339be0edcea00f16bdaf3a25281d"
+        },
+        {
+          "pointer": "/refusedRecordHash",
+          "value": "0xb6252fcd46feda13e763e5372c7fcb62218b2935e090c81c54784ab8783f5360",
+          "salt": "0x56eaf4d9e9b226e1a8ac65c82c86a78a77524c8df28eddcf9be410859ff020d1"
+        },
+        {
+          "pointer": "/ruleId",
+          "value": "machine-action-record/v1#transitions.closed",
+          "salt": "0xeb0c814a3bdea86eb49ecfd29f14f25fada5c032f4c32b829a31de0626e8d060"
+        }
+      ],
+      "recordOpening": "0x002fd60b6590ef6db6dcb2da7b72dfcec8a86b7c075abb7d2c0030f949c60596",
+      "itemIndex": 0,
+      "itemOpening": "0x87d85fad8b1c5a6e7bf9f1f37f5afaec4ea391d4909d79838098ca2d2ec68a7f",
+      "merkleProof": [],
+      "proofRoot": "0xe3b66412cab88c7798f870e648a2e073837158e326046f52e0e96ad0ff998c8c",
+      "batchId": 3,
+      "previousHead": "0x69d03fee19dd66db0f97b033fa9ceb4014e99e1e120fb37ec99d7f1613da191b",
+      "ledgerHead": "0xfe289475e3bbda182421281cefe0bd518c4bfc809275181246e0e560c32a5203",
+      "receiptId": "cmuur9w12001fs601o0zclr69",
+      "status": "committed"
+    }
+  ],
+  "ledger": {
+    "genesisHead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "head": "0xfe289475e3bbda182421281cefe0bd518c4bfc809275181246e0e560c32a5203",
+    "batches": [
+      {
+        "batchId": 0,
+        "merkleRoot": "0xd6c924d6b0728758a818f4a4199ca996807ad57d65a4bd6ae455d451ab8c42fa"
+      },
+      {
+        "batchId": 1,
+        "merkleRoot": "0x3f081432cbecae8877c0e05003b8f736fef299493c34b7365e3b6c2b54631f75"
+      },
+      {
+        "batchId": 2,
+        "merkleRoot": "0xcaad7888a77177f79137b480bf8ce517df7e2fb61317f607ee4e539c0e5ad64c"
+      },
+      {
+        "batchId": 3,
+        "merkleRoot": "0xe3b66412cab88c7798f870e648a2e073837158e326046f52e0e96ad0ff998c8c"
+      }
+    ]
+  },
+  "batchRoots": {
+    "0": "0xd6c924d6b0728758a818f4a4199ca996807ad57d65a4bd6ae455d451ab8c42fa",
+    "1": "0x3f081432cbecae8877c0e05003b8f736fef299493c34b7365e3b6c2b54631f75",
+    "2": "0xcaad7888a77177f79137b480bf8ce517df7e2fb61317f607ee4e539c0e5ad64c",
+    "3": "0xe3b66412cab88c7798f870e648a2e073837158e326046f52e0e96ad0ff998c8c"
+  },
+  "exportedAt": "2026-10-05T04:34:57.880Z",
+  "recordType": "machine-action-record",
+  "entityId": "qno1FsvCZIpEt1eZo2BFiA",
+  "refused": [
+    {
+      "seq": 3,
+      "recordHash": "0xb6252fcd46feda13e763e5372c7fcb62218b2935e090c81c54784ab8783f5360",
+      "envelope": {
+        "v": 1,
+        "ct": "X9ZZZNEi1qYgjZZN8rOn1Sewv4HPatmkU1_ALtWptpj2yTgUtU4Y6m8vFPo5MNUuk1ZqbiJbCkFRo-REr3I317SYOEnLo02Mq9kiAVvEmrv8ZrpUT_QZZgzgUECf9yy5IW_h06qN4Cud27xeFiVweUbTeHi7ocuShwhGZO2KpotNcBAv7WRSoFs0ssYacThEyLQd6Dq-TGUioZhdHaRsLzT1Zus1qMNrSv-eHyq5pOsaFltzO6gTHjS1Pyy8n-LtGSxbKTBDF6imf0XRTppS7CVq4NvVWJvZ1aE8rhLiaQ301TPH_3OUATkFxaYLvjupEcYHN22UPTBsqLd33VS5LG3KbvfxZB8ObBMztuVsxn9tIg82YgIoUyYozMgn-MZID9xr_CtJbl5NKUq3LMjoZBaf-DTMsxnJy8JJiQEpMVdVINIdVGxDD8DR4IPDSCFWk1KjGIq41oq-NxKsy1KP5O1-LeQQjJ9d9zraaRp3iIwu4tRWuekfn2HlUFBE4ZvKOceQfymanP1Sq_5F3pT1kXTpBJ0h0KJIUFsAFbtNhPkSgH58yxJmq1wHCDhGvcqKtUDSB2WUYgCENxjf_V0Ze6H6odzO65B0rI4m0198TO3VFmLPq6BKcTqFFTASH9DsZretUyDoleJiWLnxy2ViHfxTVx9Jzg9Wh3hYHjLzxqpZHl0nB6OdAWL-Jnf3RD94",
+        "iv": "O5v5VFTmIWiPLglh",
+        "alg": "A256GCM",
+        "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+      }
+    }
+  ],
+  "bundleDigest": "0x3c54ff3fcfdb50c0b31971f8df862307eadd10de0bb0784c167774dbfdac552a",
+  "entries": [
+    {
+      "seq": 0,
+      "status": "committed",
+      "receiptId": "cmuur8pxg000vs601zfmug0mv"
+    },
+    {
+      "seq": 1,
+      "status": "committed",
+      "receiptId": "cmuur94fb0013s601zwuhoj2e"
+    },
+    {
+      "seq": 2,
+      "status": "committed",
+      "receiptId": "cmuur9i7r0019s601jusvr0ev"
+    },
+    {
+      "seq": 3,
+      "status": "committed",
+      "receiptId": "cmuur9w12001fs601o0zclr69"
+    }
+  ]
+}
