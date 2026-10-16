@@ -15,7 +15,9 @@
       "publicKeyId": "pacspace:public-key-id:v1",
       "holderKeyCode": "pacspace:holder-key-code:v1",
       "seedWrap": "pacspace:seed-wrap:v1",
-      "wrap": "pacspace:wrap:v1"
+      "wrap": "pacspace:wrap:v1",
+      "wrapV2": "pacspace:wrap:v2",
+      "identityRotation": "pacspace:identity-rotation:v1"
     },
     "suites": {
       "hpke-1": {
@@ -54,7 +56,7 @@
     "holderPublicKeyId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
     "workspacePublicKeyId": "6aaabc0cd485fca8e2ff7cba486b39cf4d1ad17df983f97bd1d49d0a8858e99d"
   },
-  "caseCount": 40,
+  "caseCount": 65,
   "cases": [
     {
       "id": "HP-01",
@@ -782,6 +784,616 @@
       "expected": {
         "ok": false,
         "code": "KEY_WRAP_AUTH_FAILED"
+      }
+    },
+    {
+      "id": "WV2-01",
+      "kind": "key-wrap-v2",
+      "title": "K1 wrapped to the holder as a wrap v2, bound to the owner, version 1 and K1's id",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        },
+        "seal": {
+          "publicKey": "SKB2HYqb4qSNMeZ5eWG5SzAKqTiYMThoWOqP8-ZS8Qxf7WVmgYxVn9o6pkYu2sfHtdwH4kx_LMaT_Ftl6tnG9Vy-BwUu0kxnTHRWx7wyF6DIm4R3nTBcPPujQ9PCQiEtHJGaEZed-OCf_NUtc3cofFRqvKoSpPESXzyoJ_JvjteAZzyrzSiIyLAKkqwldKod5kM6xIYdQVd8gWJjRLR_3iNsKjseK0QkxNk8wHxYtvcnd1kRv8ADTuCAJaMLqHku6ncR_5G5PJNJPbuahemkGHyk5xgetsPECwWBTrBP6PbJFKakQLE2Ipeu_ZkEUAN_OmJ83klfrokY2hhuLpY8eMGxaFh5tFOVYEqOWtew74Fn53nLTdSXKrsrd7VnFilwarWURMMKI9w-i4tZToSZUiNqQOIP_xmJRkArz7BZykG5z5yOEvKbvbtVBkfI0Fe5kEodJqrDhToYMVSjO8oUYzgT07Oc5xc-z9kGViScrYVYOuTHcgopTVHFsBqF8_kHygMevDQSoBsD-vS7O3tkHtx906mXNuFhb-HPAVYfUZnG3gMSC8YsqDKWlEl_PzK_uGWtzUg5dBCBBBhY-BZP8JemrPRwr7ezCpRhnwY4wcSnGGpDiOxC4lRHQqBjgLZtxVcP_Du4nMhlTEWvD1yXpKoxEHOGRlYkKgTOFnmUqkpd8tHPspOM-ygdgFM_rSirl1yUVUnIg8R9VeyPZCeJ8omu8TeOQlZaG_kfWAUgjMtftnWvCex218dq5zM9yQdcx-pPejBuUSehxpIOP6S3uQmrRWYqhtQT3nd8SSCy3cZAoFxXvqrNOPfFbfWK-HuOLJJcv0NtRjVeVzPOC2p8KHpwYLU7TcE4b7QZTsy9ekwvamdUCyueHsukQxW_zXK_l2AntjVvOmiQjICoK4lTq3TG_uRj19JyO8ZqQSZwduVAoZhfGPpxMbgd8ZsBjSavPaJJ5lha-Ky-3-RfD1wRxjxy-tmUkHslO3xJqOAW0xg49SYtgtojxvRmf1VyovklxeGJqoUtF0pasaEX_RGkt9MglwbOP6GI_AOUNvXDdqupJKAh6VwCA9kgPzUit_AfrCBTx_KDmVLIzyBbrmN1pIEz19Nlijhw4GmsfiZWuEpguhuyCjYYc5pMXRKzKdSmttwxk9sIpZiodmO27Ss-DixPitkN3UeQyroV9IF3XgXFNNQgJ4YrBshPf_jJk1oZSKa868e9dSnNStwyAHCv-zPDsBSRMchWzYWx1ouLJrsGVyOb_tlhj6Qls2U5FmZV2LHO3dyWjZcyCjhymlklMwCQzAvA5WV_nSeFsoCMZVFGEPGPA4OL44K5lQyRYDrIbnZOrueY-rsX2akHwds3sPp3uNo7RJu_rGvAEIdOd3pwUTA8IQhdJYsDHFZmiNdh34dVu3uE7ho2wDtdf_KA13a3j0CiTTkj-FqeheoRllsA2qKN1HEDwFm4JtZQEJeFRlxknmwcr3oTUmlmgPyQy0Ou57XByxiZAdhiVIEJxzIlTCZTIfp3Z-N5NtaiQsh25pkqDTcfeXYGfSz8u-4EORddq9reIAK2wHHzfCoMwrss50mqVunHaGXBTwDH9I_n72A6QRGe9h4a0TySaDmBMw",
+          "keyBytes": "ccCu9srAgIcKGeqOQz4FeO5q51gowe-yhP1UdERqat8",
+          "ikmE": "60b9ca4dc2b0f85444550854da255ee97b655fbb945e832f88b0db37402f021f5e905a0fc535d4b4247b8c8c65ba0be5e6ed8f0e941da5fe07b39614f8af87b7"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "keyBytes": "ccCu9srAgIcKGeqOQz4FeO5q51gowe-yhP1UdERqat8",
+        "info": "70616373706163653a777261703a7632007265636f7264732d6b657900e82ac3220dfb22570251e855fc05929355ffc758c6fbf413d991b8afc4812a81"
+      }
+    },
+    {
+      "id": "WV2-02",
+      "kind": "key-wrap-v2",
+      "title": "A record's RK as a wrap v2, bound to the owner, the record and RK's id",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "rshraWRNYDSmHyIUh5X7ZQu3PktENYNJwLk8CgWfNX9nCrLonve1qEsvb-OIMrBxi60m65TxrBhH8vhVOopwMcS6WeDFi_rCo9QX0LAufjDueH7tPGBxHm8jHU6U8rJ06HKZVykAKHqJsJoqNhop8ujcfK7AJQh_5KFzBalS0ajAz1ovOPnurvQeud2RwBAhh2c3aMICCJLwTh7WLKoUSqvX8kbOdRHhhCDkhQQsZTTu_8NOJLKAr9GVw-SgaATebVn1_7ExqZtMf0IpdwaqyUFMOvTyS0QXbRW1S1Ktu5XS2QDdVKUyW3Z30cOZgdqD9DYEgtetC5OE3jRZiNhw05iHIGL5cQT2kXkpVGqV0ZBYTbMU5b73mf15xksutW28HdZdNYh1BLPdmdh0KsYop0LloB7JhSGOvRzaOHibYbD0NsF6Rhq7glOG-3XmPYyEmtw1JvuostUX2kqjaxzJ7AZNjEkJREIlIzNOs0yB-LA1lA5eTF1p7uCXvU8rA0gcZZ99LgmNtwG4FSyoXDdA9j_6ZhLY_bCOzWmQNgEi0LQNucxWxm-SQ07BafSJvuO_Vyw_IH2cRjCsQKVxF_ZfPIOKH_Hyf1LtaTxgz7gsfQLI6oriRkoderdNHkzQbXZPegtIEM-grGO-5Ldu4sfxeCKykWD32TunewSheQII1T3RLBgV7nZ18nWnQq_ef7xTGO3tWU5nQ9afowX7_HvPbbmAX_zlFxjRH1ewkHKmfFQTGqSp06XuQjTOaJq-NMke_9zBxA2t6p17DF69xuUzKgpWYMi6yeP6c7BXcz_N8cgFnbFua_RS3TJOXi2szwLdh5_CJG7pm2upvpRfhYMS_M77ynlnvjwVmEcHx0v-cCim_9O4lMpRFIppYUN4UnQbfkBMrUfuJmkZkOT86dE0tXaz4dtrQkMg5Qhe22nzOFqr9g0LPs206FMsiMUk2xqR_EZsayUFqoekZPGkPc8Z8HhgR7TOiFNS7O2uq6GMknElRFbxLurHciJodfe_3Ryxl0c9e2e8rx5tLg0y5cj5-dE-yU0h3YMuD4XVxOCx6hHAOF_XB8CxTHbWGwOm2u0eB0zTBbLbRrjL4QYHbSduWM0fE56oeOOl7L7IhEKi3H5lX7oVBTg528ZEbWLU3YFoTUh8ao3-OzUdWLE415gjfSYjf7t-CyTR2fRrz_o99x4h3HBHDhNcyov6R00NaKqYTRwNWNtqgUD2rCuG3QXW0hi8YXGRukV3_rqYFdqS5E6u1cRBQAlc5F0ME5ABStMMbWVg4Q9LebCXPG0eWEtjj0oG5O2yToI8HND66hBGScSlXMeQhYDprlToCRsiJo8QIwHKKf4h9Vnajy_bJwU0SNfnlwZ15T21bMASM8exVDyi1T3FrjiVXLnKE6tsdoJcAmC1Kbdlwbl3mJ6SlexRR7wEKey_8n7Q_V8BaQ6fYbGfTlislL2qoFniCNitOHgLkpDi9TZekKtC2giDQ0-MLg",
+          "ct": "Y36CMfRn5Jv9Et6wuCWdNymprT1r1KFHtPmADF2_F01x0p2E84jWqO5cJuxQOx4t"
+        },
+        "binding": {
+          "purpose": "record-key",
+          "owner": "cvectorsowner0000000001a",
+          "recordType": "machine-action",
+          "wireRecordId": "mVwZV2EAFImvFc3o-Ez5Ow",
+          "recordKeyId": "41d78bfe1b649cb92070465a567e1314936ee699ecfbe88d24a302321f0c0422"
+        },
+        "seal": {
+          "publicKey": "SKB2HYqb4qSNMeZ5eWG5SzAKqTiYMThoWOqP8-ZS8Qxf7WVmgYxVn9o6pkYu2sfHtdwH4kx_LMaT_Ftl6tnG9Vy-BwUu0kxnTHRWx7wyF6DIm4R3nTBcPPujQ9PCQiEtHJGaEZed-OCf_NUtc3cofFRqvKoSpPESXzyoJ_JvjteAZzyrzSiIyLAKkqwldKod5kM6xIYdQVd8gWJjRLR_3iNsKjseK0QkxNk8wHxYtvcnd1kRv8ADTuCAJaMLqHku6ncR_5G5PJNJPbuahemkGHyk5xgetsPECwWBTrBP6PbJFKakQLE2Ipeu_ZkEUAN_OmJ83klfrokY2hhuLpY8eMGxaFh5tFOVYEqOWtew74Fn53nLTdSXKrsrd7VnFilwarWURMMKI9w-i4tZToSZUiNqQOIP_xmJRkArz7BZykG5z5yOEvKbvbtVBkfI0Fe5kEodJqrDhToYMVSjO8oUYzgT07Oc5xc-z9kGViScrYVYOuTHcgopTVHFsBqF8_kHygMevDQSoBsD-vS7O3tkHtx906mXNuFhb-HPAVYfUZnG3gMSC8YsqDKWlEl_PzK_uGWtzUg5dBCBBBhY-BZP8JemrPRwr7ezCpRhnwY4wcSnGGpDiOxC4lRHQqBjgLZtxVcP_Du4nMhlTEWvD1yXpKoxEHOGRlYkKgTOFnmUqkpd8tHPspOM-ygdgFM_rSirl1yUVUnIg8R9VeyPZCeJ8omu8TeOQlZaG_kfWAUgjMtftnWvCex218dq5zM9yQdcx-pPejBuUSehxpIOP6S3uQmrRWYqhtQT3nd8SSCy3cZAoFxXvqrNOPfFbfWK-HuOLJJcv0NtRjVeVzPOC2p8KHpwYLU7TcE4b7QZTsy9ekwvamdUCyueHsukQxW_zXK_l2AntjVvOmiQjICoK4lTq3TG_uRj19JyO8ZqQSZwduVAoZhfGPpxMbgd8ZsBjSavPaJJ5lha-Ky-3-RfD1wRxjxy-tmUkHslO3xJqOAW0xg49SYtgtojxvRmf1VyovklxeGJqoUtF0pasaEX_RGkt9MglwbOP6GI_AOUNvXDdqupJKAh6VwCA9kgPzUit_AfrCBTx_KDmVLIzyBbrmN1pIEz19Nlijhw4GmsfiZWuEpguhuyCjYYc5pMXRKzKdSmttwxk9sIpZiodmO27Ss-DixPitkN3UeQyroV9IF3XgXFNNQgJ4YrBshPf_jJk1oZSKa868e9dSnNStwyAHCv-zPDsBSRMchWzYWx1ouLJrsGVyOb_tlhj6Qls2U5FmZV2LHO3dyWjZcyCjhymlklMwCQzAvA5WV_nSeFsoCMZVFGEPGPA4OL44K5lQyRYDrIbnZOrueY-rsX2akHwds3sPp3uNo7RJu_rGvAEIdOd3pwUTA8IQhdJYsDHFZmiNdh34dVu3uE7ho2wDtdf_KA13a3j0CiTTkj-FqeheoRllsA2qKN1HEDwFm4JtZQEJeFRlxknmwcr3oTUmlmgPyQy0Ou57XByxiZAdhiVIEJxzIlTCZTIfp3Z-N5NtaiQsh25pkqDTcfeXYGfSz8u-4EORddq9reIAK2wHHzfCoMwrss50mqVunHaGXBTwDH9I_n72A6QRGe9h4a0TySaDmBMw",
+          "keyBytes": "KZtiPMMRsN-FaqGuVzuAIz-sKhVXLJ0V7GnHb-FENl8",
+          "ikmE": "9b5ebe29fc97adae8eb8ec612afb8af7de9abf4a3faa95145388cf720feefde3700cc7038e7956260d23dfb7fac99dba043018fda28c94faee44e0e25168a406"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "keyBytes": "KZtiPMMRsN-FaqGuVzuAIz-sKhVXLJ0V7GnHb-FENl8",
+        "info": "70616373706163653a777261703a7632007265636f72642d6b657900a77313063dfb5d7bb418c5c83422d0cbfbcb71c25d141f17f89c898d5e3a4994"
+      }
+    },
+    {
+      "id": "WV2-03",
+      "kind": "key-wrap-v2",
+      "title": "A disclosure key as a wrap v2, bound to the owner and the handle",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "aB5HENsCKlLCy56ASBW0U_DqhQljrGska2PsoWEpXrySE39CxTIWlCJBkYewS_xtw1pqRpOqYqloQi9qPaHeignCM8ge3USSfNf26Hp9-IQj1Q8Y1BDqkBYTPs44Tv66xWfXIkLqcbW7IKL58KiFuw_EuDQvbFs-E8WH1NVv_738A2kF-PYVw9hZgzfpZHBrTW-YenSIj1KWNLa5R_rzO3QL_xAbDFcos4tuvaV_W0WfwlQ4s8L_tqak_K7k-F0BVTrinZaaWCTN5DHLHdEVDzK0BQVVPYbMan2FamHVta6NK5siqdl7FvCfDKshUi2YyYvQxTQ9yN3dFCZbHxWOqXEgRj2L4WaOA8zG5YwS4GA3HN4pCB7jydzx9qKL-zIEKop1m-prX-aLSw4Pk0_DsZ9OTj_219qArXDMyEtx-ffrTjuredhHS-BrzEuIHHPvajKa7DuoEAvx_pPSaktURF8W-tzED_waKnTNOn3PhQyUmmdIpU9A5o1qBjht2n2mWdRY69JNrkr8glk5_fLlFS1NMdWBqktmWLXH1nQojp4HRX0l5WQCIV51Csl3yCtmtKDk9De968YSzXeXJHfLZjng7l9xAQEA3dnc1XDyTrHs3Hlo65nc92UsB4EBp6s_VcQWrObOZ5OsLBrxHh7qVYYgnlL0GC56D1AHQ_WhkfIU6zpmLCjXYqAQKZ2hKnJGQwF5sSzVNnjetPqswYE5Bu9RKK1_9Mvr-6bXpG0IsZ5EQEUVWW_Q6uj0l8NYD00iDr3vA3DpRkRQU-Pmh3ipe2Bf_B9zpsbQIb8sW_Azrnc-RlJQPpgSqWRu8u1hRv8bLXFkPI4fXoBzk3d5x5Xr2e8lRZbpD7Pq02O0wbDWaehE_DEwfhgwq6m9f52g9YYhK3BTMW9gTvwFbQ9YlRhDS2m0bFTayRXUB1TnGR2kAD8Nqsxlui7JJl6iJGm9K8x5zztwLYFy53Wvh9qo533ffgbI7YY-GvAxFtp5URuRZXx9THG7qPY50TvcwgYWv7hlePngkOTVwDacHiRd51Jf5RcIb1vHHGjYwNxFpVwBrAG03b-_5O7hlf9FfCPl6dUAsf0AoXt98-narpMukvRy5bjNRFvWhEx8JRlLH-95xGuJjx03VH-uue9xeelyCSo0sKOOs1aeCdQlxQ8VZ2z9SIRyHGhifvqfa-AuAKHDDXgSkP0GbC_PvpToz8gZB9m0ABGpssgP2xM2XfUNNaRdHd9EQ3vpRCQvoTjIb84v9Wg9GUUxLUJ4tPybLG05tJGosa7URg-L4FSr5U_0xsvE8gPGIUnInv7w70E9manNPizEF2zw6xdg-0QR-p45OwXKerSf3BGzZ7-XHKblTKQZCmVPzoOpdOBygIcwZ5USbUa61Bg-4mWHpqnmWJAu8Ix9Adek1mwmXZmEEarffG-FnBwmTR88k7n02JgEG_mr5VwgwYFCQn_IJ470kHPD-IkZp2nuvkIcHSfAQhzdQ-IgOQ",
+          "ct": "_E_y8--A1h6L1mIkWEk-wByn6YPMLvBfVQ-XI-MthfLgoxkFJe96NZEWhRklbenX"
+        },
+        "binding": {
+          "purpose": "disclosure-key",
+          "owner": "cvectorsowner0000000001a",
+          "handle": "vectors-handle-01"
+        },
+        "seal": {
+          "publicKey": "SKB2HYqb4qSNMeZ5eWG5SzAKqTiYMThoWOqP8-ZS8Qxf7WVmgYxVn9o6pkYu2sfHtdwH4kx_LMaT_Ftl6tnG9Vy-BwUu0kxnTHRWx7wyF6DIm4R3nTBcPPujQ9PCQiEtHJGaEZed-OCf_NUtc3cofFRqvKoSpPESXzyoJ_JvjteAZzyrzSiIyLAKkqwldKod5kM6xIYdQVd8gWJjRLR_3iNsKjseK0QkxNk8wHxYtvcnd1kRv8ADTuCAJaMLqHku6ncR_5G5PJNJPbuahemkGHyk5xgetsPECwWBTrBP6PbJFKakQLE2Ipeu_ZkEUAN_OmJ83klfrokY2hhuLpY8eMGxaFh5tFOVYEqOWtew74Fn53nLTdSXKrsrd7VnFilwarWURMMKI9w-i4tZToSZUiNqQOIP_xmJRkArz7BZykG5z5yOEvKbvbtVBkfI0Fe5kEodJqrDhToYMVSjO8oUYzgT07Oc5xc-z9kGViScrYVYOuTHcgopTVHFsBqF8_kHygMevDQSoBsD-vS7O3tkHtx906mXNuFhb-HPAVYfUZnG3gMSC8YsqDKWlEl_PzK_uGWtzUg5dBCBBBhY-BZP8JemrPRwr7ezCpRhnwY4wcSnGGpDiOxC4lRHQqBjgLZtxVcP_Du4nMhlTEWvD1yXpKoxEHOGRlYkKgTOFnmUqkpd8tHPspOM-ygdgFM_rSirl1yUVUnIg8R9VeyPZCeJ8omu8TeOQlZaG_kfWAUgjMtftnWvCex218dq5zM9yQdcx-pPejBuUSehxpIOP6S3uQmrRWYqhtQT3nd8SSCy3cZAoFxXvqrNOPfFbfWK-HuOLJJcv0NtRjVeVzPOC2p8KHpwYLU7TcE4b7QZTsy9ekwvamdUCyueHsukQxW_zXK_l2AntjVvOmiQjICoK4lTq3TG_uRj19JyO8ZqQSZwduVAoZhfGPpxMbgd8ZsBjSavPaJJ5lha-Ky-3-RfD1wRxjxy-tmUkHslO3xJqOAW0xg49SYtgtojxvRmf1VyovklxeGJqoUtF0pasaEX_RGkt9MglwbOP6GI_AOUNvXDdqupJKAh6VwCA9kgPzUit_AfrCBTx_KDmVLIzyBbrmN1pIEz19Nlijhw4GmsfiZWuEpguhuyCjYYc5pMXRKzKdSmttwxk9sIpZiodmO27Ss-DixPitkN3UeQyroV9IF3XgXFNNQgJ4YrBshPf_jJk1oZSKa868e9dSnNStwyAHCv-zPDsBSRMchWzYWx1ouLJrsGVyOb_tlhj6Qls2U5FmZV2LHO3dyWjZcyCjhymlklMwCQzAvA5WV_nSeFsoCMZVFGEPGPA4OL44K5lQyRYDrIbnZOrueY-rsX2akHwds3sPp3uNo7RJu_rGvAEIdOd3pwUTA8IQhdJYsDHFZmiNdh34dVu3uE7ho2wDtdf_KA13a3j0CiTTkj-FqeheoRllsA2qKN1HEDwFm4JtZQEJeFRlxknmwcr3oTUmlmgPyQy0Ou57XByxiZAdhiVIEJxzIlTCZTIfp3Z-N5NtaiQsh25pkqDTcfeXYGfSz8u-4EORddq9reIAK2wHHzfCoMwrss50mqVunHaGXBTwDH9I_n72A6QRGe9h4a0TySaDmBMw",
+          "keyBytes": "4aemDOtskeeUOUuTNvKOVMJ5mJsOc8pds2MrqCTP8Sg",
+          "ikmE": "b5e0db1c26c158c5ed47696b0fb40a9918d7e3bbf6d11dc79be2c6db64739f39b625a5e7a831020c0ac0b622b48de1a0c24f49d483f8bca4c5c696ba33261277"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "keyBytes": "4aemDOtskeeUOUuTNvKOVMJ5mJsOc8pds2MrqCTP8Sg",
+        "info": "70616373706163653a777261703a763200646973636c6f737572652d6b657900c381825da8dea4160e045bd208ae03f9e460fbf2a19a33c84ba297a774f75094"
+      }
+    },
+    {
+      "id": "WV2-04",
+      "kind": "key-wrap-v2",
+      "title": "K1 opened as another owner's",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000002b",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_AUTH_FAILED"
+      }
+    },
+    {
+      "id": "WV2-05",
+      "kind": "key-wrap-v2",
+      "title": "K1 opened as version 2 under the same key id",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a",
+          "version": 2,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_AUTH_FAILED"
+      }
+    },
+    {
+      "id": "WV2-06",
+      "kind": "key-wrap-v2",
+      "title": "RK opened for another record key id",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "rshraWRNYDSmHyIUh5X7ZQu3PktENYNJwLk8CgWfNX9nCrLonve1qEsvb-OIMrBxi60m65TxrBhH8vhVOopwMcS6WeDFi_rCo9QX0LAufjDueH7tPGBxHm8jHU6U8rJ06HKZVykAKHqJsJoqNhop8ujcfK7AJQh_5KFzBalS0ajAz1ovOPnurvQeud2RwBAhh2c3aMICCJLwTh7WLKoUSqvX8kbOdRHhhCDkhQQsZTTu_8NOJLKAr9GVw-SgaATebVn1_7ExqZtMf0IpdwaqyUFMOvTyS0QXbRW1S1Ktu5XS2QDdVKUyW3Z30cOZgdqD9DYEgtetC5OE3jRZiNhw05iHIGL5cQT2kXkpVGqV0ZBYTbMU5b73mf15xksutW28HdZdNYh1BLPdmdh0KsYop0LloB7JhSGOvRzaOHibYbD0NsF6Rhq7glOG-3XmPYyEmtw1JvuostUX2kqjaxzJ7AZNjEkJREIlIzNOs0yB-LA1lA5eTF1p7uCXvU8rA0gcZZ99LgmNtwG4FSyoXDdA9j_6ZhLY_bCOzWmQNgEi0LQNucxWxm-SQ07BafSJvuO_Vyw_IH2cRjCsQKVxF_ZfPIOKH_Hyf1LtaTxgz7gsfQLI6oriRkoderdNHkzQbXZPegtIEM-grGO-5Ldu4sfxeCKykWD32TunewSheQII1T3RLBgV7nZ18nWnQq_ef7xTGO3tWU5nQ9afowX7_HvPbbmAX_zlFxjRH1ewkHKmfFQTGqSp06XuQjTOaJq-NMke_9zBxA2t6p17DF69xuUzKgpWYMi6yeP6c7BXcz_N8cgFnbFua_RS3TJOXi2szwLdh5_CJG7pm2upvpRfhYMS_M77ynlnvjwVmEcHx0v-cCim_9O4lMpRFIppYUN4UnQbfkBMrUfuJmkZkOT86dE0tXaz4dtrQkMg5Qhe22nzOFqr9g0LPs206FMsiMUk2xqR_EZsayUFqoekZPGkPc8Z8HhgR7TOiFNS7O2uq6GMknElRFbxLurHciJodfe_3Ryxl0c9e2e8rx5tLg0y5cj5-dE-yU0h3YMuD4XVxOCx6hHAOF_XB8CxTHbWGwOm2u0eB0zTBbLbRrjL4QYHbSduWM0fE56oeOOl7L7IhEKi3H5lX7oVBTg528ZEbWLU3YFoTUh8ao3-OzUdWLE415gjfSYjf7t-CyTR2fRrz_o99x4h3HBHDhNcyov6R00NaKqYTRwNWNtqgUD2rCuG3QXW0hi8YXGRukV3_rqYFdqS5E6u1cRBQAlc5F0ME5ABStMMbWVg4Q9LebCXPG0eWEtjj0oG5O2yToI8HND66hBGScSlXMeQhYDprlToCRsiJo8QIwHKKf4h9Vnajy_bJwU0SNfnlwZ15T21bMASM8exVDyi1T3FrjiVXLnKE6tsdoJcAmC1Kbdlwbl3mJ6SlexRR7wEKey_8n7Q_V8BaQ6fYbGfTlislL2qoFniCNitOHgLkpDi9TZekKtC2giDQ0-MLg",
+          "ct": "Y36CMfRn5Jv9Et6wuCWdNymprT1r1KFHtPmADF2_F01x0p2E84jWqO5cJuxQOx4t"
+        },
+        "binding": {
+          "purpose": "record-key",
+          "owner": "cvectorsowner0000000001a",
+          "recordType": "machine-action",
+          "wireRecordId": "mVwZV2EAFImvFc3o-Ez5Ow",
+          "recordKeyId": "337d28769bab043911f47a248f2aa92b26455ed2d8cb47aa37eea5c38f1a4941"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_AUTH_FAILED"
+      }
+    },
+    {
+      "id": "WV2-07",
+      "kind": "key-wrap-v2",
+      "title": "A disclosure key opened as another owner's",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "aB5HENsCKlLCy56ASBW0U_DqhQljrGska2PsoWEpXrySE39CxTIWlCJBkYewS_xtw1pqRpOqYqloQi9qPaHeignCM8ge3USSfNf26Hp9-IQj1Q8Y1BDqkBYTPs44Tv66xWfXIkLqcbW7IKL58KiFuw_EuDQvbFs-E8WH1NVv_738A2kF-PYVw9hZgzfpZHBrTW-YenSIj1KWNLa5R_rzO3QL_xAbDFcos4tuvaV_W0WfwlQ4s8L_tqak_K7k-F0BVTrinZaaWCTN5DHLHdEVDzK0BQVVPYbMan2FamHVta6NK5siqdl7FvCfDKshUi2YyYvQxTQ9yN3dFCZbHxWOqXEgRj2L4WaOA8zG5YwS4GA3HN4pCB7jydzx9qKL-zIEKop1m-prX-aLSw4Pk0_DsZ9OTj_219qArXDMyEtx-ffrTjuredhHS-BrzEuIHHPvajKa7DuoEAvx_pPSaktURF8W-tzED_waKnTNOn3PhQyUmmdIpU9A5o1qBjht2n2mWdRY69JNrkr8glk5_fLlFS1NMdWBqktmWLXH1nQojp4HRX0l5WQCIV51Csl3yCtmtKDk9De968YSzXeXJHfLZjng7l9xAQEA3dnc1XDyTrHs3Hlo65nc92UsB4EBp6s_VcQWrObOZ5OsLBrxHh7qVYYgnlL0GC56D1AHQ_WhkfIU6zpmLCjXYqAQKZ2hKnJGQwF5sSzVNnjetPqswYE5Bu9RKK1_9Mvr-6bXpG0IsZ5EQEUVWW_Q6uj0l8NYD00iDr3vA3DpRkRQU-Pmh3ipe2Bf_B9zpsbQIb8sW_Azrnc-RlJQPpgSqWRu8u1hRv8bLXFkPI4fXoBzk3d5x5Xr2e8lRZbpD7Pq02O0wbDWaehE_DEwfhgwq6m9f52g9YYhK3BTMW9gTvwFbQ9YlRhDS2m0bFTayRXUB1TnGR2kAD8Nqsxlui7JJl6iJGm9K8x5zztwLYFy53Wvh9qo533ffgbI7YY-GvAxFtp5URuRZXx9THG7qPY50TvcwgYWv7hlePngkOTVwDacHiRd51Jf5RcIb1vHHGjYwNxFpVwBrAG03b-_5O7hlf9FfCPl6dUAsf0AoXt98-narpMukvRy5bjNRFvWhEx8JRlLH-95xGuJjx03VH-uue9xeelyCSo0sKOOs1aeCdQlxQ8VZ2z9SIRyHGhifvqfa-AuAKHDDXgSkP0GbC_PvpToz8gZB9m0ABGpssgP2xM2XfUNNaRdHd9EQ3vpRCQvoTjIb84v9Wg9GUUxLUJ4tPybLG05tJGosa7URg-L4FSr5U_0xsvE8gPGIUnInv7w70E9manNPizEF2zw6xdg-0QR-p45OwXKerSf3BGzZ7-XHKblTKQZCmVPzoOpdOBygIcwZ5USbUa61Bg-4mWHpqnmWJAu8Ix9Adek1mwmXZmEEarffG-FnBwmTR88k7n02JgEG_mr5VwgwYFCQn_IJ470kHPD-IkZp2nuvkIcHSfAQhzdQ-IgOQ",
+          "ct": "_E_y8--A1h6L1mIkWEk-wByn6YPMLvBfVQ-XI-MthfLgoxkFJe96NZEWhRklbenX"
+        },
+        "binding": {
+          "purpose": "disclosure-key",
+          "owner": "cvectorsowner0000000002b",
+          "handle": "vectors-handle-01"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_AUTH_FAILED"
+      }
+    },
+    {
+      "id": "WV2-08",
+      "kind": "key-wrap-v2",
+      "title": "Bound to RK1's id but carrying RK2",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "9BjrIjQMiDNEb4so-f7TN0EkrFuVts6-D18W0wWJkBN_VDlOxwLtvV4AA7hz5cyODPNQvvaLXSh4P608mTwjZnGNR_5L2VJdLkPNeYidumWrAPrc2wf9Hsx6-setGr3ZQOaEMkLfsHQnaGBZig8OP0XIxRyL4gw9F83nGPVeaQPOSh-Y307QSGkFw2P0I69RvqbxQKwWc6t9aaADAhLLJzpeaMysqIrehbLVWhi6Ci1LznzJxVxNINv0yxuP4TKFWiV35hn2HVtyRh7pA1M8n-OSI3JiBoNJ7DVIBrj1tEyUc-EtQZn5G55SdehMJ1vNwpTVwLqRz30zAKyszaEEL8VEXPsRO98Ybb9b7doq3x4DOe9GRDOy8Qv8roqjTS2VejCQnPVneJfChTxHeXg3vaMFMyMpAoZqFpyU0fXVb-TmvdqPsHvEsGpb6ofDUqqPfLPdJItkw9i8tFB3cyZQvB2sE_xt5B3NfxDrA031Ap6BXIiU3W1fHEa0vipx256R2losfhA54ZPB5bayx5jE4cE08UcN6Tz6N9rbJXpJW2OTeUIR0Oh5WKckihrM9hXQmwfso3jcXg-5rXPnaViJxVDiQaXSMJ0uIj4UywLhZu5FikciGEKo6mDH64QxiNMIiybyRmHP0bM2eg63gv6cgb_4XSuOisS19af4pdNtu3HmgaLSb9yYq1UnXoP5TVRG-avQuId0DbGl9SF5qwJgeHJT_WPyZB_q_-jq-Gtu_8sR7Sq39B6fbltQw4Jp2uF4n8cY0oM4AP5Ujs4hZ-sQDitKTrUis3ZcwAYHiwnDRFpkcbpwMCKvTOzLOvlQXJpeYc9mat-DBiaW0YNT0UTnOx71kjxcCUlMTrkT8vCBOiwQ7Ylur_hKxMLtwO0JAFmER121Gg0QOAwxGXHgpvWqsAHOq10QCDyfAEnddyBdlIqeqe2Cz3JNwDoQ4WV_-zmDsvFdibS-dPMC0MJPtXo58i_pxvQbhMS5jTHgFOSv2k9_XsD2LRZQ14qsSjIphuk1W2lvUMJbmXCNCMa1bd0DGTvyan3lkzTx-c_sdNQjfKl6rhuholpIjpwIXWWmTyx9Cb1AYMxupwhibiUuraUGbyzopGDjT5eeEgD1oGfoTdNC4zuir2dohV2NkI3cAf_tfFG5drBEeybebns6Rvq6v4zAfbr-hvoh2yPw7fwfzCPpRN9Thv3Vi6VBpQAVpHo3OvgItF2im39ggAKZZpHS7fkYrajXpfm32P-M2nzWak6FhYe1tmDD8QQpTB_RmR0xsFJyhKaBfYmgR9ujKwLRLUKdPQ3zZBlMnEpm2vECeHjs7elTff5r43FCgp4oOn07Y3htwKn1Kwf3x3pQmvLGs3ymEStRD5Tv6s5L1_jWp47vbqXZv50MrUFB3wuTiU79ctqrVX7fvED7AfdnepGrMjkxt5v_AzyOwagfRIyEdSEkIyML2vlnjFI2SUbD5bINRcOys5bDcgqfQ30Q5lfidA",
+          "ct": "tB9-RjYNBpcRFDy2n4og_mMQerGpJO-4uZzEh5MQHE549tVxqaulL332zMdRk4JL"
+        },
+        "binding": {
+          "purpose": "record-key",
+          "owner": "cvectorsowner0000000001a",
+          "recordType": "machine-action",
+          "wireRecordId": "mVwZV2EAFImvFc3o-Ez5Ow",
+          "recordKeyId": "41d78bfe1b649cb92070465a567e1314936ee699ecfbe88d24a302321f0c0422"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_KEY_MISMATCH"
+      }
+    },
+    {
+      "id": "WV2-09",
+      "kind": "key-wrap-v2",
+      "title": "Bound to K1's id but carrying K2",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "FkTYV0Iur-6xjd3um5HKYohxajuh1Uh5d9L6Jo2XTGEisyDOY5ZyWA7LMOKpfQc7bX0GXiGQx-_98DVDdMch3jHDCF3VhLasFdMlWWZeGmD0SnGQeVhANtO120J3LSQTyrxZRMek0dB4a7o-1nivOWHh-JiI7jnMneNwSiIxWaijCvh9ratdzZ2Z06WQb7fUYJFXYXDaSdX_9nKmxnCXy8dFx-3p79zeU-258A6eZQQGE-KtBQ0h2dxWjdTI78cAjlhytXF7-RgK3d9C0H4L0pRxJlzfY6peUSwnVWNzNc1QPy4c-YXFb69TGLrbHopmY6I5NrSebTY7NxmTA21dfoJo5u0Nswze0QD2cBEkXXE8o7OxAbgw7sFDeKuIsonpH4ri1tPs43MvCmn3lE8gcPKr5LhCg_s64jK0PFTvJR8ZJboJd2E-lnWxQ-Sp6ZedsDHSzVpj4kMuoH27qLTQCWxD3K3zmDNpRqGEjztRQbT4b-UCDViTZ4Oe82hrdaU3x2IYThCpnKQ4fku1QqZHgVK5JILKR27Y-QOV_1H5yXrYfHFMjAk-CP9dPxFnlezkHp2yn-aisOnbghETiMh-HzZa4prj_9NnfMNwHtAeyFb9v4X8CuKQyQF9rF7_SsQiuhi1STdj-7PEvpifuHgnEZ1EPzXwIT-u7bdREFUH8ur0z07r2RIldzC-Cz0yNg5N7zaTiIzjWgn0q-ZNS_M1urIzbhZgKDcF2IAFBxtw4x_o244D-MfTWjJZxE-8QNr0iW12z6FuYqxYx8Zf3tQEZeL4G-GM67zsPIG5rXBikTsiKvfUKRbBHyaO_YWJuIoJX-0gYmVJe9NlywDyWOYE2dNCSEfDprxp3XY1bjijDtHqIbxkOA0b3RFtp8u3EY9NU1x8wa0VFOUXx7AYW8PfJfrNejUycVEaORFmjnm0Pc-idFjf8VXuqe-zJYzX0AspfsR8Y4aPGjTwcyum68exTrIKLqYeHRF-9hI8u0mviiyNNm-FZnvuwWJST45BGbGKxJcqPSU6ufWmJASrk04bibbuEaM-WtOowJ5M1D_h57qAs0m_Qx_jmNmjN4qPE_t7RuVZ3WXf6sRLVL5uNcBLS8Ls8xiuuKmAnADJt5o04JTlvhwE0tUOSWL3jfVw8DynViuLlCk1vhaZ6Whp69mU_bYDsW060G2SkKFUwdmInLvR2MWtSljcjIeQX8tn43szx_THTKb1TIPg4YtsHkJs0iZzfFVpbQQi-plOqvx8b932pxXS0fWjVyW7aTqS_CMgu-uGYLDD0u2X8KfYSX6ZyG5J2jFq6_CvkOcO5qc_zhLzKhLbBMqRjeNr3Sp4aq10gfWKKk1isg1Z3f3EnDxHod3Swh9V9HNfzOLv2iVF4fmdJUsR5XsB3RnMEcjcH0B6upUzVGoPFmk2syuRZse9SFAddW9Qwz1qc-Jt9zWk3QOUrCYe7cceGd3cyMTd6NjfdG4jsWCqEU-iqYZ2p28AQw",
+          "ct": "fYmyGyE-7Nsb_H2edXZbRBlNOSEgK4I0P13rKaYLmGG55uoW3AH6-hRoI5biXNbn"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_KEY_MISMATCH"
+      }
+    },
+    {
+      "id": "WV2-10",
+      "kind": "key-wrap-v2",
+      "title": "A wrap v1 is not opened as a wrap v2",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 1,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "jmW3UK5t3kWKDML2VEzVsf7MdZ0odoNDSGXy-Vlf2rf1rKPGsrasYujtVtWjTpHmvAwfbrsYOxPhZekMiBF4XT5kjcXcySW1sHln3xc-If70O14YowkBpSQCwgH2sZrNSeXvxVCC4L_1tI7eUCt0k82ucOy7boeiOqRKZObkzsLJnpb8ZugljZxeTK_qvad9DKJFTOvJPZjmN_ghOd3pVVTJ4V1Hw2pTdMB8VF261sz2bExGYxbDq-Kng8GSqQSeKL_ktefjHVbk5wEQde4QvZgz_ldQIjG-zCZFXFmPWcX6IduFtyCKlPHcR4Ek4LcN8JlNFAr_Ka-LlATnB2i3IZca_WBRaT9ndGOremKXPy13GVRb4-Fl7DU0Wd9lAtdjmBuvr0Q72iRyjVxK2fbjzJk8Q9dvbW1o-kc3uKvAcW7PvkvQeQaYmhFP-AUaJIy7I0GtPBztwejxMH5yXULHeOS9Csew3I4wDn--HHRHLscZv8Onc_VXnUpf_1qVVzsWs8BV6pC5sweYkZvdPE00eIl8tFcCq7pkG1XYGOQQQdaByodstb90MM_8ds3IfM03tFBLJmTRz5nzLPDDfndo2e7v24Gh3Lxs67WecaD4kOalrHduyVUmt-JDz0czgEau7UkngYlwX1wW9jk6qZba9RzOeTjK2SxFC-6d9KXy5-LVsFSdvEeOHm4xG9A7jL-yawYGgkdT8dtJVQEy5uhnUpmlwmIelCIAd6lDT0xK-gyO12Sl0tDCNlpv84kpBbmxFRhI1IgNDBoRxpdmYwFr891p2TZm3NegvSS-UzU3XCp4V8TY8_C_7Yc0IqOnVkY5QZFlWWETt_jpE60KGJoWp3Zkenf5qhFU6opGcl5yIYlzke5yyRmFFQs-4qXpq2bOyEo4gtcjODsPV0XnCneJbfRjZqYgF6VNtbWveiX8PM33G0RmXNVraJzXKV6ZVcD_4IVQwLcxcar5o3P4aBnw2WXepDdPDmOgEUTDxyIjL9l9a6lM8ODq4u0N4brlaCF9wefPzDqCG_nlV61x3U0YvbSG8TKhcUXg7eaINmreyGxG-b36zxnkpHozr6GXCkjqGnzE5z0hruzV_B0ocSAWGHNC9cvyGUdYOVTenOhuCOy0nTlLLj9qNnNIHtLjNobsfpx1z6n5nmDakAdtvMUHQVFPY28rP8vhJrAg_kw5M_aVgAV9a1Dc7gzDUae1wF5g3s27ueqN3jraM3cWV7MKDUHp2oVj8lX8Q0d3FNOoaL5qyTf_X0OLekEpm-7EUqA3EZUapfNtspuJUMGND5Fjznlw9UB2-0IVUX2SQ8aZuezLYvpKImSZRVR4nf195kRjDmzwZyJT9c6DCvKU57FBvCGSZYZPrueucw3_9IzZMohgnetdb_E6SR4lsTt97zaofT_W3qneZnvysFBO7jy5jvMaQZqGiSRWjjMUP7d0pM1AHhKTxtSdNjMAmypwKPTSZyAwoRf3D9WDeGmwQyYbaA",
+          "ct": "RQ98RnMCrSyC_qTW-cQxotjgvAMeAsPA54YOFfpBZcuWlyXABHPy1EoQCWfHKVSq"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_MALFORMED"
+      }
+    },
+    {
+      "id": "WV2-11",
+      "kind": "key-wrap-v2",
+      "title": "A wrap v2 is not opened as a wrap v1",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8",
+          "version": 1
+        },
+        "openAs": 1
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_MALFORMED"
+      }
+    },
+    {
+      "id": "WV2-12",
+      "kind": "key-wrap-v2",
+      "title": "An owner with an uppercase letter is refused before anything is opened",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "Cvectorsowner0000000001a",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "WV2-13",
+      "kind": "key-wrap-v2",
+      "title": "An owner with an underscore is refused before anything is opened",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectors_owner_000000001",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "WV2-14",
+      "kind": "key-wrap-v2",
+      "title": "An owner with 19 characters is refused before anything is opened",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner000001",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "WV2-15",
+      "kind": "key-wrap-v2",
+      "title": "An owner with a zero byte is refused before anything is opened",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a\u0000x",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "WV2-18",
+      "kind": "key-wrap-v2",
+      "title": "An owner with 33 characters is refused before anything is opened",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a000000000",
+          "version": 1,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "WV2-16",
+      "kind": "key-wrap-v2",
+      "title": "Version 0 is refused",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a",
+          "version": 0,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "WV2-17",
+      "kind": "key-wrap-v2",
+      "title": "Version 65536 is refused",
+      "input": {
+        "holderSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "wrap": {
+          "v": 2,
+          "suite": "hpke-1",
+          "to": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "enc": "WfqDO8kVpddphegTJ8_EqNRXDgP6zZFcKz_-RPJU2_n3tXY5JU2zDQLfOnIrFBnCYd-y1z-CxACiY1Pr3oxJjtfkKFs73soVi480TRytHV-0Jz5lf-dTg0lzXMKa7svleLaM4piOo6Eu6n2w-AG3CvaapxdGXR-oDYIYlS9MIyeOzcu-IjhnyI7x6nTI4fIytncTLz-xiJ7Dze7Cw0XkLuMbz_GZ8yEDQX6t70_px7PitzxxEsWZHdlM2L6KrOTXAIMq6f5kYA8SHA8KpKywy-UWbeTSlrWtHa6Adz3tNKv5_z5nKuHRXzIu_031-a-xTKsuSsopTdj_mnOmQsT1APtAh3ksSE5yPhM_XbHJ2S785LgbhgLGls5X1hIQQrOJGNj5-tgRh9mYQm-pzhjVqCqqfBJKRy-KHkUXcdwWyCbmLnu2BaxWTtlGE3xDA-PPRqkY7zz3sopR7fHP2aP3lT_TyzC_vAE31Amg_us5FCkarb4uREUWEmMIGtv5CNzK8tU0KJvjjKaR_xH-X5CVWmrkDSrjP9rBSgYD7JqI2GebAjzKoZpOPlfJ32YwNvcASM7mC3D-EQnzVI0wKGpWptPfYLrDJGEePbGeHwI-tl0hUhNLkf-AC_yXEriUm8fdv_pu92ZixKdu0dOOjqvpdz0qqupstpIixB132HzDLkbPVuOqfDBDKrMu1E_TwC53zfgv5QvxBIgMes0nsqh7cE3ogLhNTfsrlJZ1W3dV8MGvFEXEq3evDT8t6_IlOywWu7_A6d5GXgzOcpkBOXUDDJ5UC8oQeLKh8ahTNZ1pe-P2lqQmNdu37rn4YbCJCG9wX8DHXX17xUTAbMJbsJn5SKtqCojh95OoQqGudRjBAOdIsZqIhmbmFtpo8MOZn0e3pLptQ8dis4n2N9fuVhgeGJKNFjdRFHXpTUUIwI0D3hFa1K4I19OX1gJnrhCNTr00l8ne4mA6OUC0hizcnoBZgM1_IJ26TyZEcIg9L6seJnQbt__94V0ELXMr5xhk7Bfxl0bgMMcEAm70hXh8fnA6aTWJ6GepBkyDW3MiT0bCoxU0prEZbY-1AQ5etXBvYa9Yjh6L3mWKJF--72jx05kXxUyc01yntzlHhM9UMOVyyHg1T6Rn919EWpTY9Lhzb1tXTDYZ7tW1v_yQVf9hBWIpnRVvDSYUISIjviBqfUOUKN80PnhKx7vk9ITZynZJ_dSQqvV5BGUcMmrpMdmamfBBzxnfxk6fQccIR4KVIeLejVocyOinM1Lv59j1oO06nBH6WbgChBEJJped4gto5G62RuljvBdKKXcSqiFY2wvkfN6G0aPHTaWkcPQZutsjBJ_c41eBlz4-jcf7qIbCDkF7-dLwc3luLV-TgiH9z07RodnfKcMZrLTU8sBVsnPYA37r_mSs3_DlcEbD1czVNV-BMfJU1dC0F-SzGyCTKKTz1zZXFkydCqkHet95fehC6Jd84043FrTC8Tss2ZU0fjGWEQ",
+          "ct": "9KVeybY6Lc1XxPiPFwItxGa0NkPWT5vtIwgTKc0PN3gMBWmnMuyxylK9SOG3k4zF"
+        },
+        "binding": {
+          "purpose": "records-key",
+          "owner": "cvectorsowner0000000001a",
+          "version": 65536,
+          "recordsKeyId": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "KEY_WRAP_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "RC-01",
+      "kind": "rotation",
+      "title": "The API's challenge to the current key, and the proof the current seed makes for it",
+      "input": {
+        "currentSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "binding": {
+          "workspaceId": "cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "c2139812ec3e351cd66b6b8c2f0bc7d5e8cb7376b36844c3fe892fdad5dd9655",
+          "challengeId": "SjW5VNk0WyLgE2Bvs8MYvQ"
+        },
+        "challenge": {
+          "publicKey": "SKB2HYqb4qSNMeZ5eWG5SzAKqTiYMThoWOqP8-ZS8Qxf7WVmgYxVn9o6pkYu2sfHtdwH4kx_LMaT_Ftl6tnG9Vy-BwUu0kxnTHRWx7wyF6DIm4R3nTBcPPujQ9PCQiEtHJGaEZed-OCf_NUtc3cofFRqvKoSpPESXzyoJ_JvjteAZzyrzSiIyLAKkqwldKod5kM6xIYdQVd8gWJjRLR_3iNsKjseK0QkxNk8wHxYtvcnd1kRv8ADTuCAJaMLqHku6ncR_5G5PJNJPbuahemkGHyk5xgetsPECwWBTrBP6PbJFKakQLE2Ipeu_ZkEUAN_OmJ83klfrokY2hhuLpY8eMGxaFh5tFOVYEqOWtew74Fn53nLTdSXKrsrd7VnFilwarWURMMKI9w-i4tZToSZUiNqQOIP_xmJRkArz7BZykG5z5yOEvKbvbtVBkfI0Fe5kEodJqrDhToYMVSjO8oUYzgT07Oc5xc-z9kGViScrYVYOuTHcgopTVHFsBqF8_kHygMevDQSoBsD-vS7O3tkHtx906mXNuFhb-HPAVYfUZnG3gMSC8YsqDKWlEl_PzK_uGWtzUg5dBCBBBhY-BZP8JemrPRwr7ezCpRhnwY4wcSnGGpDiOxC4lRHQqBjgLZtxVcP_Du4nMhlTEWvD1yXpKoxEHOGRlYkKgTOFnmUqkpd8tHPspOM-ygdgFM_rSirl1yUVUnIg8R9VeyPZCeJ8omu8TeOQlZaG_kfWAUgjMtftnWvCex218dq5zM9yQdcx-pPejBuUSehxpIOP6S3uQmrRWYqhtQT3nd8SSCy3cZAoFxXvqrNOPfFbfWK-HuOLJJcv0NtRjVeVzPOC2p8KHpwYLU7TcE4b7QZTsy9ekwvamdUCyueHsukQxW_zXK_l2AntjVvOmiQjICoK4lTq3TG_uRj19JyO8ZqQSZwduVAoZhfGPpxMbgd8ZsBjSavPaJJ5lha-Ky-3-RfD1wRxjxy-tmUkHslO3xJqOAW0xg49SYtgtojxvRmf1VyovklxeGJqoUtF0pasaEX_RGkt9MglwbOP6GI_AOUNvXDdqupJKAh6VwCA9kgPzUit_AfrCBTx_KDmVLIzyBbrmN1pIEz19Nlijhw4GmsfiZWuEpguhuyCjYYc5pMXRKzKdSmttwxk9sIpZiodmO27Ss-DixPitkN3UeQyroV9IF3XgXFNNQgJ4YrBshPf_jJk1oZSKa868e9dSnNStwyAHCv-zPDsBSRMchWzYWx1ouLJrsGVyOb_tlhj6Qls2U5FmZV2LHO3dyWjZcyCjhymlklMwCQzAvA5WV_nSeFsoCMZVFGEPGPA4OL44K5lQyRYDrIbnZOrueY-rsX2akHwds3sPp3uNo7RJu_rGvAEIdOd3pwUTA8IQhdJYsDHFZmiNdh34dVu3uE7ho2wDtdf_KA13a3j0CiTTkj-FqeheoRllsA2qKN1HEDwFm4JtZQEJeFRlxknmwcr3oTUmlmgPyQy0Ou57XByxiZAdhiVIEJxzIlTCZTIfp3Z-N5NtaiQsh25pkqDTcfeXYGfSz8u-4EORddq9reIAK2wHHzfCoMwrss50mqVunHaGXBTwDH9I_n72A6QRGe9h4a0TySaDmBMw",
+          "ikmE": "2ce780d102980621f2210b084ff7643bf13ff372509946eac08ce35ae06d085a4c82ee11c45c5d85454cce29b75c9b9a0ebd6b0227694cc5d767503af1fe0496"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "proof": "7yrpeq-EB_kJbOtrKB3OEfLFeH0kgPfQ4Xx4p1JPo64",
+        "proofHash": "d37cb6be99121b4a15102ed5260eeac225b2add8bb28719da662c9609eecb1af",
+        "message": "70616373706163653a6964656e746974792d726f746174696f6e3a76310063766563746f72736f776e657230303030303030303031610037613431626436323434343638396161356365633232393263643532663239343638623739356630376635306634336165613966393633323161313934623961006332313339383132656333653335316364363662366238633266306263376435653863623733373662333638343463336665383932666461643564643936353500536a5735564e6b3057794c674532427673384d597651"
+      }
+    },
+    {
+      "id": "RC-02",
+      "kind": "rotation",
+      "title": "The same encapsulation answered for another new identity makes another proof",
+      "input": {
+        "currentSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "binding": {
+          "workspaceId": "cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "6aaabc0cd485fca8e2ff7cba486b39cf4d1ad17df983f97bd1d49d0a8858e99d",
+          "challengeId": "SjW5VNk0WyLgE2Bvs8MYvQ"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "proof": "YCVWtUuRnCKHnP8jBUG00m04otBNH9VHVXMhOrdjjMM",
+        "matchesRc01": false
+      }
+    },
+    {
+      "id": "RC-03",
+      "kind": "rotation",
+      "title": "Answered by a seed that is not the identity it leaves",
+      "input": {
+        "currentSeed": "km1FXp8N2WhVMix0McYgETkspOUmOOq_t0dDDm04sa0",
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "binding": {
+          "workspaceId": "cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "c2139812ec3e351cd66b6b8c2f0bc7d5e8cb7376b36844c3fe892fdad5dd9655",
+          "challengeId": "SjW5VNk0WyLgE2Bvs8MYvQ"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "ROTATION_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "RC-04",
+      "kind": "rotation",
+      "title": "A rotation to the identity it leaves",
+      "input": {
+        "currentSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "binding": {
+          "workspaceId": "cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "challengeId": "SjW5VNk0WyLgE2Bvs8MYvQ"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "ROTATION_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "RC-05",
+      "kind": "rotation",
+      "title": "A challenge id of 21 characters",
+      "input": {
+        "currentSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "binding": {
+          "workspaceId": "cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "c2139812ec3e351cd66b6b8c2f0bc7d5e8cb7376b36844c3fe892fdad5dd9655",
+          "challengeId": "jW5VNk0WyLgE2Bvs8MYvQ"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "ROTATION_BINDING_INVALID"
+      }
+    },
+    {
+      "id": "RC-06",
+      "kind": "rotation",
+      "title": "An encapsulation one byte short",
+      "input": {
+        "currentSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "enc": "ESYs9KLxR4vDJxy_WbRrSMscBUExRRq1tZJSHLpZ5dK301KxHx6XDIA26thdncYWjU4txB9Zh0I8Fwcis4duLzFmsdAyHf1EokdSVXd3HZgBO1pCT2J8ZaoNkZWwR8LhWzASjwNzckJ2BQUocuQ1yumq0hjmOEEsFDIP_CXDte5XrDY9ZUCkM38HkE6L2J2YhqrRqRX86lzLyVascQL3PLB22LwWYXISeJEx1t0hwdZCeZK8Y8yD5mdtulsY6Z47CmeHktFp0Yb1UUgOCtqZEJWASj3Wj5qoBF_oea3mdjebDfydWmKsrUtKVJKRZAgOnubTpTocc375nfI8pCHa6HmqmhtTK8P6m7C72Vl6BfMx5lI8dbTRnamNDCFPBdiSZFEecchmuNi3bKwLg818Qg2XTLoVODz-WZVl2C868Eg6nSUeqM2J4xifAdiWaY4BTrHuXLEhC6lckIO-kZcfxUbxAy6Lv2wTAwyp6PrJVH7UQrXQ7TlSYZqZKcv1wzT2xhoo-aZnlOWragFl9HQVMy29CJShVfPvIVuSDknmNvh91hxJ18GPeFYXoCX4YDPXPYqO1NVWhnxyxXVO1TOVtL45ejlmLtE8WZTJo6pN6ciViD7K9ci6SdiitGOZflIuTs-d7P_kR-ORG7BxMzunZ32nZu_-kO_VfBYU6dojZ0ItBneVlGvAB8XDr5uS9lpz7K2WOPD0cp5q-Tdj1H8X2XuzQlvmutWaCq1u26PSfwm2RXZee7UveaivOK3hGIzJUUhPBNHDKTC0YkLfJ9XU3iGH1D6r1-FAoDSU9Osol4-r4QRCpiLn6NQmkBnK34pec-sv_9MdapM7_WakW3SOHxlf68j5E3r3GijLIVUkZli89GNk-tF3Nkt7fStritN8h9Y2GOCfKFk_gmluC0_pnonbYogfvkSOTEKxdZbcaQegvHzcT3Nn8jLqRP56uVHyAMVe5-J0LQPiK8_nqj2yQXqxGWuwLkWiXvu9aUQsdRPpsWcDUHiiSzI6HYDY66a17obAd1UJZYVXJ12rTxLuJHwS_ArFL5-tF8QEzw40oZ1-BY856HTWJnInEgOcZyEoBy8fVwup4L7oqV5pPpZdpdc5cy97Kmt0UGeTsSqBwWd_vsLxFT-u_ltq-64WNIs849VJGVcU-M0T4Ke-kTyXtge2k_an51Wi-I1cDzsTJfD78m7wHOu1ReqmdK9X3RvkRywLwgCscRwax1ary9mhSH0qgNEbMUr58DhB0aLy8Vyi0DEGkqL_XVz52Yea0fvDOGm6onfTfVKHXiTIXbxVBDjoXIpeR_fFMaCTCoqVSFxOGw6Jh3gcTFFD7X_LsH9pWNOkyOra3UEftOB5BAVbhJz4mjp8UM92_aQGchvme_d4fgVPbIbZYuoqS376PwBqg_EIdQ3OhRmT_7qakXlBSqdxMFkF7pJ3_WUF_O3tiVWHesIR6U1lB7zUCWYZcwaUa_BregBd8S0wcsHs-vJ3",
+        "binding": {
+          "workspaceId": "cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "c2139812ec3e351cd66b6b8c2f0bc7d5e8cb7376b36844c3fe892fdad5dd9655",
+          "challengeId": "SjW5VNk0WyLgE2Bvs8MYvQ"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "ROTATION_CHALLENGE_MALFORMED"
+      }
+    },
+    {
+      "id": "RC-07",
+      "kind": "rotation",
+      "title": "A workspace id with an uppercase letter",
+      "input": {
+        "currentSeed": "Ybj6vXY1asiP_qsyXaTzGGFHUZru1XOn6WJwhyf_a-s",
+        "enc": "8REmLPSi8UeLwyccv1m0a0jLHAVBMUUatbWSUhy6WeXSt9NSsR8elwyANurYXZ3GFo1OLcQfWYdCPBcHIrOHbi8xZrHQMh39RKJHUlV3dx2YATtaQk9ifGWqDZGVsEfC4VswEo8Dc3JCdgUFKHLkNcrpqtIY5jhBLBQyD_wlw7XuV6w2PWVApDN_B5BOi9idmIaq0akV_Opcy8lWrHEC9zywdti8FmFyEniRMdbdIcHWQnmSvGPMg-ZnbbpbGOmeOwpnh5LRadGG9VFIDgramRCVgEo91o-aqARf6Hmt5nY3mw38nVpirK1LSlSSkWQIDp7m06U6HHN--Z3yPKQh2uh5qpobUyvD-puwu9lZegXzMeZSPHW00Z2pjQwhTwXYkmRRHnHIZrjYt2ysC4PNfEINl0y6FTg8_lmVZdgvOvBIOp0lHqjNieMYnwHYlmmOAU6x7lyxIQupXJCDvpGXH8VG8QMui79sEwMMqej6yVR-1EK10O05UmGamSnL9cM09sYaKPmmZ5Tlq2oBZfR0FTMtvQiUoVXz7yFbkg5J5jb4fdYcSdfBj3hWF6Al-GAz1z2KjtTVVoZ8csV1TtUzlbS-OXo5Zi7RPFmUyaOqTenIlYg-yvXIuknYorRjmX5SLk7Pnez_5EfjkRuwcTM7p2d9p2bv_pDv1XwWFOnaI2dCLQZ3lZRrwAfFw6-bkvZac-ytljjw9HKeavk3Y9R_F9l7s0Jb5rrVmgqtbtuj0n8JtkV2Xnu1L3morzit4RiMyVFITwTRwykwtGJC3yfV1N4hh9Q-q9fhQKA0lPTrKJePq-EEQqYi5-jUJpAZyt-KXnPrL__THWqTO_1mpFt0jh8ZX-vI-RN69xooyyFVJGZYvPRjZPrRdzZLe30ra4rTfIfWNhjgnyhZP4JpbgtP6Z6J22KIH75EjkxCsXWW3GkHoLx83E9zZ_Iy6kT-erlR8gDFXufidC0D4ivP56o9skF6sRlrsC5Fol77vWlELHUT6bFnA1B4oksyOh2A2Oumte6GwHdVCWWFVyddq08S7iR8EvwKxS-frRfEBM8ONKGdfgWPOeh01iZyJxIDnGchKAcvH1cLqeC-6KleaT6WXaXXOXMveyprdFBnk7EqgcFnf77C8RU_rv5bavuuFjSLPOPVSRlXFPjNE-CnvpE8l7YHtpP2p-dVoviNXA87EyXw-_Ju8BzrtUXqpnSvV90b5EcsC8IArHEcGsdWq8vZoUh9KoDRGzFK-fA4QdGi8vFcotAxBpKi_11c-dmHmtH7wzhpuqJ3031Sh14kyF28VQQ46FyKXkf3xTGgkwqKlUhcThsOiYd4HExRQ-1_y7B_aVjTpMjq2t1BH7TgeQQFW4Sc-Jo6fFDPdv2kBnIb5nv3eH4FT2yG2WLqKkt--j8AaoPxCHUNzoUZk_-6mpF5QUqncTBZBe6Sd_1lBfzt7YlVh3rCEelNZQe81AlmGXMGlGvwa3oAXfEtMHLB7Prydw",
+        "binding": {
+          "workspaceId": "Cvectorsowner0000000001a",
+          "fromId": "7a41bd62444689aa5cec2292cd52f29468b795f07f50f43aea9f96321a194b9a",
+          "newId": "c2139812ec3e351cd66b6b8c2f0bc7d5e8cb7376b36844c3fe892fdad5dd9655",
+          "challengeId": "SjW5VNk0WyLgE2Bvs8MYvQ"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "code": "ROTATION_BINDING_INVALID"
       }
     },
     {

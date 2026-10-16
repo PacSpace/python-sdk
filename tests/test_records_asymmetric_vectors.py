@@ -41,8 +41,11 @@ CASE_IDS = [
     "SW-01", "SW-02", "SW-03", "SW-04", "SW-05", "SW-06", "SW-07", "SW-08",
     "WP-01", "WP-02", "WP-03", "WP-04", "WP-05", "WP-06", "WP-07", "WP-08", "WP-09",
     "WP-10", "WP-11", "WP-12", "WP-13", "WP-14", "WP-15", "WP-16", "WP-17", "WP-18",
+    "WV2-01", "WV2-02", "WV2-03", "WV2-04", "WV2-05", "WV2-06", "WV2-07", "WV2-08", "WV2-09",
+    "WV2-10", "WV2-11", "WV2-12", "WV2-13", "WV2-14", "WV2-15", "WV2-16", "WV2-17", "WV2-18",
     "AK-01", "AK-02", "AK-03",
     "MD-01", "MD-02", "MD-03", "MD-04", "MD-05",
+    "RC-01", "RC-02", "RC-03", "RC-04", "RC-05", "RC-06", "RC-07",
 ]
 
 
@@ -229,6 +232,43 @@ class RecordsAsymmetricVectorsTest(unittest.TestCase):
         self.assertEqual(R.b64url_encode(seed.public_key), i["seal"]["publicKey"])
         self.assertEqual(i["seal"]["keyBytes"], expected["keyBytes"])
 
+    def _key_wrap_v2(self, case: Dict[str, Any]) -> None:
+        i, expected = case["input"], case["expected"]
+        seed = A.workspace_seed_from_bytes(b64(i["holderSeed"]))
+        b = i["binding"]
+        purpose = b["purpose"]
+        if i.get("openAs") == 1:
+            opened = A.unwrap_records_key(seed, i["wrap"], b["version"], b["recordsKeyId"])
+            key_bytes = None
+        elif purpose == "records-key":
+            opened = A.unwrap_records_key_v2(seed, i["wrap"], b["owner"], b["version"], b["recordsKeyId"])
+            key_bytes = R.export_key_bytes(opened["recordsKey"]) if opened["ok"] else None
+        elif purpose == "record-key":
+            opened = A.unwrap_record_key_v2(seed, i["wrap"], b["owner"], b["recordType"], b["wireRecordId"], b["recordKeyId"])
+            key_bytes = R.export_key_bytes(opened["recordKey"]) if opened["ok"] else None
+            if opened["ok"]:
+                self.assertEqual(opened["recordKey"].id, b["recordKeyId"])
+        else:
+            opened = A.unwrap_disclosure_key_v2(seed, i["wrap"], b["owner"], b["handle"])
+            key_bytes = opened.get("disclosureKey")
+        if not expected["ok"]:
+            self.assertEqual(opened, {"ok": False, "code": expected["code"]})
+            return
+        self.assertEqual(R.b64url_encode(key_bytes), expected["keyBytes"])
+        self.assertEqual(A.key_wrap_info_v2(b).hex(), expected["info"])
+        self.assertEqual(R.b64url_encode(seed.public_key), i["seal"]["publicKey"])
+        self.assertEqual(i["seal"]["keyBytes"], expected["keyBytes"])
+
+    def test_a_wrap_v2_made_here_opens_and_names_its_form(self) -> None:
+        seed = A.workspace_seed_from_bytes(b64(CASES["WV2-01"]["input"]["holderSeed"]))
+        ring = _keyring()
+        owner = CASES["WV2-01"]["input"]["binding"]["owner"]
+        wrap = A.wrap_records_key_v2(seed.public_key, ring.by_version(1), owner)
+        self.assertEqual(wrap["v"], 2)
+        opened = A.unwrap_records_key_v2(seed, wrap, owner, 1, ring.by_version(1).id)
+        self.assertTrue(opened["ok"])
+        self.assertEqual(A.unwrap_records_key(seed, wrap, 1, ring.by_version(1).id), {"ok": False, "code": "KEY_WRAP_MALFORMED"})
+
     def _ack_v2(self, case: Dict[str, Any]) -> None:
         i, expected = case["input"], case["expected"]
         self.assertEqual(_ack_key_id(i["es256"], i["mldsaPublicKey"]), expected["keyId"])
@@ -248,6 +288,17 @@ class RecordsAsymmetricVectorsTest(unittest.TestCase):
             }
             self.assertEqual(json.dumps(body, separators=(",", ":"), ensure_ascii=False), expected["body"])
             self.assertEqual(b["keyId"], expected["keyId"])
+
+    def _rotation(self, case: Dict[str, Any]) -> None:
+        # Only the API and the key pages answer a rotation challenge; this
+        # SDK checks the label and the bytes the proof binds.
+        if "message" not in case["expected"]:
+            return
+        b = case["input"]["binding"]
+        message = b"\x00".join(
+            s.encode("ascii") for s in (A.LABELS["identityRotation"], b["workspaceId"], b["fromId"], b["newId"], b["challengeId"])
+        )
+        self.assertEqual(message.hex(), case["expected"]["message"])
 
     def _mldsa(self, case: Dict[str, Any]) -> None:
         i, expected = case["input"], case["expected"]

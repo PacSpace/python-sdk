@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.0 - 2026-10-16
+
+### Changed
+
+- **Encrypted records move to format 2. Update every server that writes or reads encrypted records. 0.6.0 can no longer write encrypted records or add an encryption version.**
+- An encrypted write declares its record hash version. Encrypted records started after format 2 use record hash v3: each top-level field is sealed once, so a shown field has exactly one sealed value. Records that are not encrypted are unchanged.
+- Wraps to a holder, a grant reader or a link are bound to the owning workspace. Opening an encrypted record through a grant needs owner, the owning workspace's id; a missing or malformed id is refused before anything is sent (RECORDS_OWNER_INVALID).
+- records.rotate() adds the new version and its holder wraps in one request, and seals the seed of each key this workspace holds under it.
+- The disclosure check now checks each entry's seal as well as its record hash. Its chainCheckNote says so: "This check covers each shown field up to its record hash and its seal, and compares them with the record's seal history. It does not check the ledger; run @pacspace-io/check for that."
+
+### Added
+
+- Reads record-disclosure/v2 and the histories of encrypted records started after format 2.
+- After this workspace's key is replaced on the key pages, reads and records.holdings.confirm() still open what was wrapped to its earlier keys.
+- RECORDS_SECRET_FILE_OUTDATED and RECORDS_RETIRED_KEY_MISMATCH, with the same sentences as the TypeScript SDK.
+
 ## 0.6.0 - 2026-10-09
 
 ### Added

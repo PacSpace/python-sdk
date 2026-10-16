@@ -8,8 +8,9 @@ iv, plaintext, aad)`` and ``decrypt(key, iv, sealed, aad)``, the second
 raising on a bad tag. Everything around it is here: the derivations, wire
 ids, the content tag, padding and its checks, the envelope's shape, the
 caps, the outside-copy check, the keyring file, and opening a history or a
-copy file up to each entry's record hash. Python has no keccak256, so the
-bundle digest, the receipt forms and the seals are the TypeScript
+copy file up to each entry's record hash (and, for a record hash v3
+history, each entry's seal). The bundle digest, the receipt-form rule
+that reads the layout's words, and the Merkle paths are the TypeScript
 verifier's and the checker's.
 
 No key's bytes are printed: key objects keep them in a module table, so
@@ -29,7 +30,15 @@ import re
 import weakref
 from typing import Any, Dict, List, Optional, Protocol, Sequence, Tuple, Union
 
-from .record_disclosure import _is_hex32, _utf8, canonicalize_jcs, commit_record_content_v2
+from .record_disclosure import (
+    _is_hex32,
+    _utf8,
+    canonicalize_jcs,
+    commit_record_content_v2,
+    commit_record_content_v3,
+    open_record_entry_v3,
+)
+from .record_seal import compute_seal_v1, seal_input_hash, seal_tag_of_v1, split_word_v1
 
 LABELS = {
     "idKey": "pacspace:id-key:v1",
@@ -44,6 +53,10 @@ LABELS = {
     "contentTag": "pacspace:content-tag:v1",
     "entry": "pacspace:record-entry:v1",
 }
+CONTENT_TAG_LABELS_V2 = {
+    "contentTagKey": "pacspace:content-tag-key:v2",
+    "contentTag": "pacspace:content-tag:v2",
+}
 
 PAD_BLOCK = 256
 PLAINTEXT_MAX_BYTES = 47104
@@ -56,6 +69,8 @@ WORKSPACE_SECRET_BYTES = 32
 
 SEMANTIC_RECEIPT_SCHEMA_V3 = "semantic-receipt/v3"
 SEMANTIC_RECEIPT_SCHEMA_V4 = "semantic-receipt/v4"
+SEMANTIC_RECEIPT_SCHEMA_V5 = "semantic-receipt/v5"
+SEMANTIC_RECEIPT_SCHEMA_V6 = "semantic-receipt/v6"
 RECORD_HISTORY_BUNDLE_SCHEMA_V3 = "record-history-bundle/v3"
 RECORD_COPY_SCHEMA_V1 = "pacspace-record-copy/v1"
 
@@ -144,6 +159,13 @@ class RecordsWrapKey(_HiddenKey):
     _kind = "wrap key"
 
 
+class RecordsContentTagKey(_HiddenKey):
+    """The content-tag key of one version (card 10, F2)."""
+
+    __slots__ = ()
+    _kind = "content tag key"
+
+
 class RecordKey(_HiddenKey):
     __slots__ = ("records_key_id",)
     _kind = "record key"
@@ -201,6 +223,12 @@ def derive_records_keys(secret: bytes, version: int) -> Tuple[RecordsKey, Record
     )
 
 
+def derive_content_tag_key(secret: bytes, version: int) -> RecordsContentTagKey:
+    """The content-tag key of one version: HKDF-SHA256(S_v, "", "pacspace:content-tag-key:v2")."""
+    _assert_secret(secret, version)
+    return RecordsContentTagKey(_hkdf32(bytes(secret), b"", CONTENT_TAG_LABELS_V2["contentTagKey"]), None, version)
+
+
 def record_key_of(records_key: RecordsKey, wire_record_id: str) -> RecordKey:
     if not isinstance(records_key, RecordsKey) or not isinstance(wire_record_id, str) or _WIRE_ID.fullmatch(wire_record_id) is None:
         raise RecordsEncryptionError("RECORDS_KEY_INVALID")
@@ -247,6 +275,20 @@ def content_tag(id_key: RecordsIdKey, record_type: str, wire_record_id: str, con
         + _utf8(canonicalize_jcs({"content": content, "lifecycle": lifecycle}))
     )
     return b64url_encode(hmac.new(_bytes_of(id_key), message, hashlib.sha256).digest())
+
+
+def content_tag_v2(
+    content_tag_key: RecordsContentTagKey, record_type: str, wire_record_id: str, content: Dict[str, Any], lifecycle: str
+) -> str:
+    """The content tag under the record's version (card 10, F2); the default
+    caller reference, so it deduplicates within one version only."""
+    if not isinstance(content_tag_key, RecordsContentTagKey):
+        raise RecordsEncryptionError("RECORDS_KEY_INVALID")
+    message = (
+        CONTENT_TAG_LABELS_V2["contentTag"].encode("ascii") + _SEP + _utf8(record_type) + _SEP + _utf8(wire_record_id) + _SEP
+        + _utf8(canonicalize_jcs({"content": content, "lifecycle": lifecycle}))
+    )
+    return b64url_encode(hmac.new(_bytes_of(content_tag_key), message, hashlib.sha256).digest())
 
 
 # ------------------------------------------------------------------ envelope
@@ -366,7 +408,7 @@ def open_record_entry_envelope(
         return _refuse("RECORD_ENVELOPE_AUTH_FAILED")
     opened = _unpad(plain)
     if opened["ok"]:
-        opened["recordsKeyId"] = shape["kid"]
+        opened["recordsKeyId"] = shape["kid"] if keyring is not None else rk.records_key_id
     return opened
 
 
@@ -424,13 +466,14 @@ class RecordsKeyProvider(Protocol):
 class RecordsKeyring:
     """Every version of a workspace's keys, made once from a provider."""
 
-    __slots__ = ("id_key", "_by_id", "_by_version", "_wrap")
+    __slots__ = ("id_key", "_by_id", "_by_version", "_wrap", "_tag")
 
     def __init__(self, id_key: RecordsIdKey) -> None:
         self.id_key = id_key
         self._by_id: Dict[str, RecordsKey] = {}
         self._by_version: Dict[int, RecordsKey] = {}
         self._wrap: Dict[int, RecordsWrapKey] = {}
+        self._tag: Dict[int, RecordsContentTagKey] = {}
 
     @classmethod
     def from_provider(cls, provider: RecordsKeyProvider) -> "RecordsKeyring":
@@ -439,10 +482,12 @@ class RecordsKeyring:
             raise RecordsEncryptionError("RECORDS_KEY_INVALID")
         ring = cls(derive_records_id_key(provider.secret(1)))
         for version in versions:
-            records_key, wrap_key = derive_records_keys(provider.secret(version), version)
+            secret = provider.secret(version)
+            records_key, wrap_key = derive_records_keys(secret, version)
             ring._by_id[records_key.id] = records_key
             ring._by_version[version] = records_key
             ring._wrap[version] = wrap_key
+            ring._tag[version] = derive_content_tag_key(secret, version)
         return ring
 
     @property
@@ -461,6 +506,9 @@ class RecordsKeyring:
 
     def wrap_key(self, version: int) -> Optional[RecordsWrapKey]:
         return self._wrap.get(version)
+
+    def content_tag_key(self, version: int) -> Optional[RecordsContentTagKey]:
+        return self._tag.get(version)
 
     def __repr__(self) -> str:
         return f"[records keyring v1..v{len(self._by_version)}]"
@@ -558,9 +606,10 @@ def parse_records_keyring_file(text: Any) -> Dict[str, Any]:
 # ------------------------------------------ receipts, histories and copy files
 
 
-def _record_hash_of(content: Dict[str, Any], salt_key: str) -> Optional[str]:
+def _record_hash_of(content: Dict[str, Any], salt_key: str, hash_version: int = 2) -> Optional[str]:
+    commit = commit_record_content_v3 if hash_version == 3 else commit_record_content_v2
     try:
-        return commit_record_content_v2(content, salt_key)["recordHash"]
+        return commit(content, salt_key)["recordHash"]
     except Exception:
         return None
 
@@ -572,10 +621,23 @@ def _seq_of(value: Any) -> Optional[int]:
 
 def open_receipt_v4(aead: Aead, receipt: Any, record_key: RecordKey, record_type: str, wire_record_id: str) -> Dict[str, Any]:
     """The envelope this record key opens (each in turn), its record hash, and the outside copies of the references."""
+    return _open_transition_receipt(aead, receipt, record_key, record_type, wire_record_id, SEMANTIC_RECEIPT_SCHEMA_V4)
+
+
+def open_receipt_v5(aead: Aead, receipt: Any, record_key: RecordKey, record_type: str, wire_record_id: str) -> Dict[str, Any]:
+    """As ``open_receipt_v4``, for a record hash v3 transition: the record hash is recomputed under v3."""
+    return _open_transition_receipt(aead, receipt, record_key, record_type, wire_record_id, SEMANTIC_RECEIPT_SCHEMA_V5)
+
+
+def _open_transition_receipt(
+    aead: Aead, receipt: Any, record_key: RecordKey, record_type: str, wire_record_id: str, schema: str
+) -> Dict[str, Any]:
     seq = _seq_of(receipt)
+    hash_version = 3 if schema == SEMANTIC_RECEIPT_SCHEMA_V5 else 2
     if (
         not isinstance(receipt, dict)
-        or receipt.get("schema") != SEMANTIC_RECEIPT_SCHEMA_V4
+        or receipt.get("schema") != schema
+        or (hash_version == 3 and not _is_version_3(receipt.get("recordHashVersion")))
         or receipt.get("itemKind") != "slot-v1"
         or not _is_hex32(receipt.get("recordHash"))
         or not isinstance(receipt.get("envelopes"), list)
@@ -593,7 +655,7 @@ def open_receipt_v4(aead: Aead, receipt: Any, record_key: RecordKey, record_type
                 return _refuse(opened["code"], seq)
             last = _refuse(opened["code"], seq)
             continue
-        record_hash = _record_hash_of(opened["content"], opened["saltKey"])
+        record_hash = _record_hash_of(opened["content"], opened["saltKey"], hash_version)
         if record_hash is None or record_hash != receipt["recordHash"]:
             return _refuse("RECORD_ENTRY_HASH_MISMATCH", seq)
         outside = {m: receipt[m] for m in ("amends", "references") if m in receipt}
@@ -612,9 +674,14 @@ def open_record_history_v3(
     record_keys: Optional[Sequence[RecordKey]] = None,
 ) -> Dict[str, Any]:
     """
-    Opens a record-history-bundle/v3 with the record's key: every v4 entry and
-    every refused envelope, each up to its record hash. It does not check the
-    bundle digest, the receipt forms or the seals (see the module note).
+    Opens a record-history-bundle/v3 with the record's key: every transition
+    entry and every refused envelope, each up to its record hash. A history
+    holds v3 and v4 receipts (record hash v2) or v6 and v5 receipts (record
+    hash v3, each stating ``recordHashVersion: 3``), never both. For a v3
+    history, ``sealsVerified`` says whether every entry's seal reproduces
+    its word's seal tag; for a v2 history it is None. It does not check the
+    bundle digest, the layout's words or the Merkle paths (see the module
+    note).
 
     A re-key leaves an attempt's refused envelope under its original version.
     It is opened with the held key its ``kid`` names (``record_key`` or one of
@@ -634,21 +701,31 @@ def open_record_history_v3(
     if expect is not None and (record_type != expect.get("recordType") or entity_id != expect.get("wireRecordId")):
         return _refuse("RECORD_HISTORY_WRONG_RECORD")
     receipts = bundle["receipts"]
+    v3 = any(isinstance(r, dict) and r.get("schema") in (SEMANTIC_RECEIPT_SCHEMA_V5, SEMANTIC_RECEIPT_SCHEMA_V6) for r in receipts)
+    row_form, transition_form = (
+        (SEMANTIC_RECEIPT_SCHEMA_V6, SEMANTIC_RECEIPT_SCHEMA_V5) if v3 else (SEMANTIC_RECEIPT_SCHEMA_V3, SEMANTIC_RECEIPT_SCHEMA_V4)
+    )
     for receipt in receipts:
-        if _seq_of(receipt) is None or receipt.get("schema") not in (SEMANTIC_RECEIPT_SCHEMA_V3, SEMANTIC_RECEIPT_SCHEMA_V4):
+        if _seq_of(receipt) is None or receipt.get("schema") not in (row_form, transition_form):
+            return _refuse("RECORD_HISTORY_RECEIPT_FORM", _seq_of(receipt))
+        if (not _is_version_3(receipt.get("recordHashVersion"))) if v3 else ("recordHashVersion" in receipt):
             return _refuse("RECORD_HISTORY_RECEIPT_FORM", _seq_of(receipt))
 
     opened: List[Dict[str, Any]] = []
+    sealed: List[Tuple[Dict[str, Any], Optional[str]]] = []
     for receipt in sorted(receipts, key=lambda r: r["seq"]):
-        if receipt["schema"] == SEMANTIC_RECEIPT_SCHEMA_V4:
-            entry = open_receipt_v4(aead, receipt, record_key, record_type, entity_id)
+        if receipt["schema"] == transition_form:
+            entry = _open_transition_receipt(aead, receipt, record_key, record_type, entity_id, transition_form)
             if not entry["ok"]:
                 return entry
             opened.append({"seq": receipt["seq"], "recordHash": entry["recordHash"], "content": entry["content"], "saltKey": entry["saltKey"]})
+            sealed.append((receipt, entry["recordHash"]))
         else:
             opened.append({"seq": receipt["seq"], "plaintext": True})
+            row = open_record_entry_v3(receipt, every=True) if v3 else None
+            sealed.append((receipt, row["recordHash"] if row and row["ok"] else None))
 
-    row_seqs = {r["seq"] for r in receipts if r["schema"] == SEMANTIC_RECEIPT_SCHEMA_V3}
+    row_seqs = {r["seq"] for r in receipts if r["schema"] == row_form}
     held = [k for k in [record_key, *(record_keys or [])] if isinstance(k, RecordKey)]
     refused: List[Dict[str, Any]] = []
     for item in bundle["refused"]:
@@ -674,11 +751,35 @@ def open_record_history_v3(
             continue
         if not entry["ok"]:
             return _refuse(entry["code"], seq)
-        record_hash = _record_hash_of(entry["content"], entry["saltKey"])
+        record_hash = _record_hash_of(entry["content"], entry["saltKey"], 3 if v3 else 2)
         if record_hash is None or record_hash != item["recordHash"]:
             return _refuse("RECORD_ENTRY_HASH_MISMATCH", seq)
         refused.append({"seq": seq, "recordHash": record_hash, "opened": True})
-    return {"ok": True, "opened": opened, "refused": refused}
+    seals_verified = all(_seal_reproduces(receipt, record_hash) for receipt, record_hash in sealed) if v3 else None
+    return {"ok": True, "opened": opened, "refused": refused, "sealsVerified": seals_verified}
+
+
+def _is_version_3(value: Any) -> bool:
+    return value == 3 and isinstance(value, int) and not isinstance(value, bool)
+
+
+def _seal_reproduces(receipt: Dict[str, Any], record_hash: Optional[str]) -> bool:
+    """The receipt's seal over sealInputHash(3, recordHash) carries its new word's seal tag."""
+    if record_hash is None:
+        return False
+    try:
+        state96, seal_tag = split_word_v1(receipt["newWord"])
+        seal = compute_seal_v1(
+            receipt["layoutId"],
+            receipt["layoutVersion"],
+            receipt["layoutDigest"],
+            state96,
+            seal_input_hash(3, record_hash),
+            receipt["recordOpening"],
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+    return seal_tag_of_v1(seal) == seal_tag
 
 
 def read_record_copy_v1(copy: Any) -> Dict[str, Any]:

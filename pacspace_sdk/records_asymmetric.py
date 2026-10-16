@@ -49,6 +49,8 @@ LABELS = {
     "holderKeyCode": "pacspace:holder-key-code:v1",
     "seedWrap": "pacspace:seed-wrap:v1",
     "wrap": "pacspace:wrap:v1",
+    "wrapV2": "pacspace:wrap:v2",
+    "identityRotation": "pacspace:identity-rotation:v1",
 }
 
 KEY_WRAP_SUITE = "hpke-1"
@@ -285,18 +287,18 @@ def _hybrid_public_key(public_key: bytes) -> hpke.MLKEM768X25519PublicKey:
     )
 
 
-def _seal_key_wrap(public_key: bytes, binding: Dict[str, Any], key_bytes: bytes) -> Dict[str, Any]:
+def _seal_key_wrap(public_key: bytes, binding: Dict[str, Any], key_bytes: bytes, v: int = 1) -> Dict[str, Any]:
     _assert_public_key(public_key)
     if not _is_bytes(key_bytes) or len(key_bytes) != 32:
         raise RecordsAsymmetricError("KEY_WRAP_BINDING_INVALID")
-    info = key_wrap_info(binding)
+    info = key_wrap_info_v2(binding) if v == 2 else key_wrap_info(binding)
     try:
         hybrid = _hybrid_public_key(public_key)
     except Exception:
         raise RecordsAsymmetricError("WORKSPACE_PUBLIC_KEY_INVALID") from None
     sealed = _SUITE.encrypt(bytes(key_bytes), hybrid, info=info)
     return {
-        "v": 1,
+        "v": v,
         "suite": KEY_WRAP_SUITE,
         "to": public_key_id(public_key),
         "enc": b64url_encode(sealed[:KEY_WRAP_ENC_BYTES]),
@@ -324,12 +326,12 @@ def wrap_disclosure_key(public_key: bytes, disclosure_key: bytes, handle: str) -
     return _seal_key_wrap(public_key, {"purpose": "disclosure-key", "handle": handle}, disclosure_key)
 
 
-def read_key_wrap_shape(wrap: Any) -> Dict[str, Any]:
-    """The keyless checks every reader runs first. Never raises."""
+def read_key_wrap_shape(wrap: Any, form: int = 1) -> Dict[str, Any]:
+    """The keyless checks every reader runs first; ``form`` 2 reads a wrap v2 only. Never raises."""
     if not isinstance(wrap, dict) or sorted(wrap.keys()) != ["ct", "enc", "suite", "to", "v"]:
         return _refuse("KEY_WRAP_MALFORMED")
     v = wrap["v"]
-    if not (type(v) in (int, float) and v == 1) or not isinstance(wrap["suite"], str):
+    if not (type(v) in (int, float) and v == form) or not isinstance(wrap["suite"], str):
         return _refuse("KEY_WRAP_MALFORMED")
     if wrap["suite"] != KEY_WRAP_SUITE:
         return _refuse("KEY_WRAP_SUITE")
@@ -341,14 +343,14 @@ def read_key_wrap_shape(wrap: Any) -> Dict[str, Any]:
     return {"ok": True, "to": wrap["to"], "enc": enc, "ct": ct}
 
 
-def _open_key_wrap(seed: Any, wrap: Any, binding: Dict[str, Any]) -> Dict[str, Any]:
-    shape = read_key_wrap_shape(wrap)
+def _open_key_wrap(seed: Any, wrap: Any, binding: Dict[str, Any], form: int = 1) -> Dict[str, Any]:
+    shape = read_key_wrap_shape(wrap, form)
     if not shape["ok"]:
         return shape
     if not isinstance(seed, WorkspaceSeed) or shape["to"] != seed.public_key_id:
         return _refuse("KEY_WRAP_WRONG_HOLDER")
     try:
-        info = key_wrap_info(binding)
+        info = key_wrap_info_v2(binding) if form == 2 else key_wrap_info(binding)
     except Exception:
         return _refuse("KEY_WRAP_BINDING_INVALID")
     try:
@@ -392,6 +394,108 @@ def unwrap_disclosure_key(seed: WorkspaceSeed, wrap: Any, handle: str) -> Dict[s
     """A disclosure key from a wrap. Never raises."""
     try:
         opened = _open_key_wrap(seed, wrap, {"purpose": "disclosure-key", "handle": handle})
+        if not opened["ok"]:
+            return opened
+        return {"ok": True, "disclosureKey": opened["keyBytes"]}
+    except Exception:
+        return _refuse("KEY_WRAP_AUTH_FAILED")
+
+
+# ------------------------------------------------------------ wraps v2 (card 10, F3)
+
+# A workspace id as PacSpace makes them (cuid): checked before it is hashed.
+KEY_WRAP_OWNER_V2 = re.compile(r"[a-z0-9]{20,32}")
+
+
+def _binding_bytes_v2(binding: Any) -> bytes:
+    owner = binding.get("owner") if isinstance(binding, dict) else None
+    if not isinstance(owner, str) or KEY_WRAP_OWNER_V2.fullmatch(owner) is None:
+        raise RecordsAsymmetricError("KEY_WRAP_BINDING_INVALID")
+    head = owner.encode("ascii") + _SEP
+    purpose = binding.get("purpose")
+    if purpose == "records-key":
+        version, key_id = binding.get("version"), binding.get("recordsKeyId")
+        if type(version) is int and 1 <= version <= 0xFFFF and isinstance(key_id, str) and _HEX64.fullmatch(key_id):
+            return head + version.to_bytes(2, "big") + bytes.fromhex(key_id)
+    elif purpose == "record-key":
+        record_type, wire_id, rkid = binding.get("recordType"), binding.get("wireRecordId"), binding.get("recordKeyId")
+        if (
+            isinstance(record_type, str)
+            and _PRINTABLE_ASCII.fullmatch(record_type)
+            and isinstance(wire_id, str)
+            and _WIRE_ID.fullmatch(wire_id)
+            and isinstance(rkid, str)
+            and _HEX64.fullmatch(rkid)
+        ):
+            return head + record_type.encode("ascii") + _SEP + wire_id.encode("ascii") + _SEP + bytes.fromhex(rkid)
+    elif purpose == "disclosure-key":
+        handle = binding.get("handle")
+        if isinstance(handle, str) and _PRINTABLE_ASCII.fullmatch(handle):
+            return head + handle.encode("ascii")
+    raise RecordsAsymmetricError("KEY_WRAP_BINDING_INVALID")
+
+
+def key_wrap_info_v2(binding: Dict[str, Any]) -> bytes:
+    """``"pacspace:wrap:v2" || 0x00 || purpose || 0x00 || SHA-256(binding)``; the binding names the owner."""
+    data = _binding_bytes_v2(binding)
+    return LABELS["wrapV2"].encode("ascii") + _SEP + binding["purpose"].encode("ascii") + _SEP + hashlib.sha256(data).digest()
+
+
+def wrap_records_key_v2(public_key: bytes, records_key: RecordsKey, owner: str) -> Dict[str, Any]:
+    """``K_v``, wrapped to a workspace-scope holder of ``owner``'s records."""
+    if not isinstance(records_key, RecordsKey):
+        raise RecordsEncryptionError("RECORDS_KEY_INVALID")
+    binding = {"purpose": "records-key", "owner": owner, "version": records_key.version, "recordsKeyId": records_key.id}
+    return _seal_key_wrap(public_key, binding, export_key_bytes(records_key), 2)
+
+
+def wrap_record_key_v2(public_key: bytes, record_key: RecordKey, record_type: str, wire_record_id: str, owner: str) -> Dict[str, Any]:
+    """One of ``owner``'s records' ``RK``, wrapped to a record-scope holder or a counterparty."""
+    if not isinstance(record_key, RecordKey):
+        raise RecordsEncryptionError("RECORDS_KEY_INVALID")
+    binding = {"purpose": "record-key", "owner": owner, "recordType": record_type, "wireRecordId": wire_record_id, "recordKeyId": record_key.id}
+    return _seal_key_wrap(public_key, binding, export_key_bytes(record_key), 2)
+
+
+def wrap_disclosure_key_v2(public_key: bytes, disclosure_key: bytes, handle: str, owner: str) -> Dict[str, Any]:
+    """A disclosure key ``owner`` made, wrapped to a reader's confirmed public key."""
+    return _seal_key_wrap(public_key, {"purpose": "disclosure-key", "owner": owner, "handle": handle}, disclosure_key, 2)
+
+
+def unwrap_records_key_v2(seed: WorkspaceSeed, wrap: Any, owner: str, version: int, records_key_id: str) -> Dict[str, Any]:
+    """``K_v`` of ``owner`` from a wrap v2, its id recomputed from the bytes. Never raises."""
+    try:
+        binding = {"purpose": "records-key", "owner": owner, "version": version, "recordsKeyId": records_key_id}
+        opened = _open_key_wrap(seed, wrap, binding, 2)
+        if not opened["ok"]:
+            return opened
+        records_key = records_key_from_bytes(opened["keyBytes"], version)
+        if records_key.id != records_key_id:
+            return _refuse("KEY_WRAP_KEY_MISMATCH")
+        return {"ok": True, "recordsKey": records_key}
+    except Exception:
+        return _refuse("KEY_WRAP_AUTH_FAILED")
+
+
+def unwrap_record_key_v2(seed: WorkspaceSeed, wrap: Any, owner: str, record_type: str, wire_record_id: str, record_key_id: str) -> Dict[str, Any]:
+    """One of ``owner``'s records' ``RK`` from a wrap v2; its id must be ``record_key_id``. Never raises."""
+    try:
+        binding = {"purpose": "record-key", "owner": owner, "recordType": record_type, "wireRecordId": wire_record_id, "recordKeyId": record_key_id}
+        opened = _open_key_wrap(seed, wrap, binding, 2)
+        if not opened["ok"]:
+            return opened
+        record_key = record_key_from_bytes(opened["keyBytes"])
+        if record_key.id != record_key_id:
+            return _refuse("KEY_WRAP_KEY_MISMATCH")
+        return {"ok": True, "recordKey": record_key}
+    except Exception:
+        return _refuse("KEY_WRAP_AUTH_FAILED")
+
+
+def unwrap_disclosure_key_v2(seed: WorkspaceSeed, wrap: Any, owner: str, handle: str) -> Dict[str, Any]:
+    """A disclosure key ``owner`` made, from a wrap v2. Never raises."""
+    try:
+        opened = _open_key_wrap(seed, wrap, {"purpose": "disclosure-key", "owner": owner, "handle": handle}, 2)
         if not opened["ok"]:
             return opened
         return {"ok": True, "disclosureKey": opened["keyBytes"]}

@@ -40,8 +40,8 @@ LINK_COPIES = json.loads((VECTORS / "record-link-copy-v1.json").read_text(encodi
 CASE_IDS = [c["id"] for c in FILE["cases"]]
 
 CHAIN_CHECK_NOTE = (
-    "This check covers each shown field up to its record hash and compares it with the record's seal history. "
-    "It does not check the seal or the ledger; run @pacspace-io/check for that."
+    "This check covers each shown field up to its record hash and its seal, and compares them with the record's seal history. "
+    "It does not check the ledger; run @pacspace-io/check for that."
 )
 NOTE_V1 = "This entry was sealed before record hash v2; check it with @pacspace-io/check."
 

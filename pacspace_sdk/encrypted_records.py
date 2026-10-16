@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote
@@ -23,7 +24,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from . import records_asymmetric as A
 from . import records_encryption as R
 from .errors import PacSpaceError
-from .record_disclosure import RECORD_DISCLOSURE_MAX_BYTES_V1, canonicalize_jcs, commit_record_content_v2
+from .record_disclosure import RECORD_DISCLOSURE_MAX_BYTES_V1, canonicalize_jcs, commit_record_content_v2, commit_record_content_v3
 from .records_admission import admit_record_entry
 from .records_pins import RecordsPinStore
 from .records_words import RecordsEncryptionError
@@ -186,6 +187,33 @@ def read_disclosure_fragment(fragment: str) -> Optional[bytes]:
     return key if key is not None and len(key) == 32 else None
 
 
+_LINK_FRAGMENT_V2 = re.compile(r"^(dk|dd)=([A-Za-z0-9_-]{43})$")
+
+
+def read_link_fragment(fragment: str) -> Optional[Dict[str, Any]]:
+    """A link's fragment in format 2: exactly one of ``dk=`` (the key) or
+    ``dd=`` (the disclosure's digest, when the key comes from a wrap), as the
+    shared ``readDisclosureLinkFragmentV2``. Anything else is None."""
+    if not isinstance(fragment, str):
+        return None
+    match = _LINK_FRAGMENT_V2.fullmatch(fragment[1:] if fragment.startswith("#") else fragment)
+    if match is None:
+        return None
+    raw = R.b64url_decode(match.group(2))
+    if raw is None or len(raw) != 32 or R.b64url_encode(raw) != match.group(2):
+        return None
+    if match.group(1) == "dk":
+        return {"kind": "key", "key": raw}
+    return {"kind": "digest", "digest": "0x" + raw.hex()}
+
+
+def disclosure_digest_fragment(digest: str) -> str:
+    """``dd=`` plus the disclosure digest's 43 base64url characters."""
+    if not isinstance(digest, str) or re.fullmatch(r"0x[0-9a-f]{64}", digest) is None:
+        raise ValueError("DISCLOSURE_MALFORMED")
+    return "dd=" + R.b64url_encode(bytes.fromhex(digest[2:]))
+
+
 def disclosure_key_of(value: Union[bytes, str]) -> Optional[bytes]:
     """A disclosure key from bytes, a link, its ``#dk=`` part, or the key as base64url."""
     if isinstance(value, (bytes, bytearray)):
@@ -239,6 +267,13 @@ def decrypt_disclosure(envelope: Any, key: bytes, handle: str) -> Dict[str, Any]
 # ------------------------------------------------------------ the encrypted paths
 
 
+def _owner_of(value: Any) -> str:
+    """An owner workspace id a wrap is bound to (card 10, F3), or W-C10-B-17 before any key is used."""
+    if not isinstance(value, str) or A.KEY_WRAP_OWNER_V2.fullmatch(value) is None:
+        raise RecordsEncryptionError("RECORDS_OWNER_INVALID")
+    return value
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
@@ -250,6 +285,9 @@ class EncryptedRecords:
         self.pins = pins
         # A record's version, once known: (record type, wire record id) to version.
         self._version_of: Dict[Tuple[str, str], int] = {}
+        # Card 10, F1: the record hash version intake took last; 2 sends 0.13.0's body.
+        self._hash_version = 2
+        self._workspace_id: Optional[str] = None
 
     # ------------------------------------------------------------ ids
 
@@ -281,9 +319,10 @@ class EncryptedRecords:
             raise PacSpaceError(refused[1], 400, refused[0])
         wire_record_id = R.wire_record_id(ring.id_key, record_type, record)
         salt_key = "0x" + os.urandom(32).hex()
-        record_hash = commit_record_content_v2(content, salt_key)["recordHash"]
-        tag = R.content_tag(ring.id_key, record_type, wire_record_id, content, lifecycle)
-        wire_reference_id = R.wire_reference_id(ring.id_key, idempotency_key or tag)
+        record_hashes = {
+            2: commit_record_content_v2(content, salt_key)["recordHash"],
+            3: commit_record_content_v3(content, salt_key)["recordHash"],
+        }
         outside = {m: content[m] for m in ("amends", "references") if m in content}
         try:
             plaintext_bytes = len(R.record_entry_plaintext(content, salt_key))
@@ -292,11 +331,21 @@ class EncryptedRecords:
                 raise
             raise PacSpaceError(_SIZE_WORDS["RECORD_ENTRY_TOO_LARGE"], 413, "RECORD_ENTRY_TOO_LARGE") from None
 
-        def body_under(version: int) -> Dict[str, Any]:
+        # Card 10, F2: the tag is keyed by the record's version, and the default
+        # reference is made from it, so it deduplicates within one version only.
+        sent = {"wireReferenceId": ""}
+
+        def body_under(version: int, hash_version: int) -> Dict[str, Any]:
             records_key = ring.by_version(version)
-            if records_key is None:
+            tag_key = ring.content_tag_key(version)
+            if records_key is None or tag_key is None:
                 raise RecordsEncryptionError("RECORDS_VERSION_NOT_HELD", v=version)
-            fields = {"lifecycle": lifecycle, "referenceId": wire_reference_id, "recordHash": record_hash, "contentTag": tag, **outside}
+            tag = R.content_tag_v2(tag_key, record_type, wire_record_id, content, lifecycle)
+            sent["wireReferenceId"] = R.wire_reference_id(ring.id_key, idempotency_key or tag)
+            fields: Dict[str, Any] = {"lifecycle": lifecycle, "referenceId": sent["wireReferenceId"], "recordHash": record_hashes[hash_version]}
+            if hash_version == 3:
+                fields["recordHashVersion"] = 3
+            fields.update({"contentTag": tag, **outside})
             size = R.check_encrypted_write_size(fields, records_key.id, plaintext_bytes)
             if not size["ok"]:
                 raise PacSpaceError(_SIZE_WORDS[size["code"]], 413, size["code"])
@@ -305,19 +354,43 @@ class EncryptedRecords:
 
         cache_key = (record_type, wire_record_id)
         version = self._version_of.get(cache_key, ring.current.version)
+        hash_version = self._hash_version
+        key_retried = hash_retried = claim_retried = False
         path = record_path(record_type, wire_record_id, "/transitions")
-        try:
-            response = self._client.post(path, body_under(version), options)
-        except PacSpaceError as error:
-            record_kid = _api_body(error).get("recordKid")
-            if error.code != "RECORD_ENCRYPTION_VERSION_MISMATCH" or not isinstance(record_kid, str):
-                raise
-            held = ring.by_id(record_kid)
-            if held is None:
-                raise RecordsEncryptionError("RECORDS_VERSION_NOT_HELD", v=self._version_number_of(record_kid)) from None
-            version = held.version
-            response = self._client.post(path, body_under(version), options)
+        while True:
+            try:
+                response = self._client.post(path, body_under(version, hash_version), options)
+                break
+            except PacSpaceError as error:
+                other_hash = (error.code == "RECORD_HASH_VERSION_NOT_ENABLED" and hash_version == 3) or (
+                    error.code == "RECORD_FORMAT_RETIRED" and hash_version == 2
+                )
+                if other_hash and not hash_retried:
+                    hash_retried = True
+                    hash_version = 2 if hash_version == 3 else 3
+                    continue
+                body = _api_body(error)
+                claim_kid = body.get("claimKid")
+                if error.code == "IDEMPOTENCY_CONFLICT" and isinstance(claim_kid, str) and not claim_retried:
+                    claimed = ring.by_id(claim_kid)
+                    if claimed is None:
+                        raise RecordsEncryptionError("RECORDS_VERSION_NOT_HELD", v=self._version_number_of(claim_kid), write=True) from None
+                    if claimed.version == version:
+                        raise
+                    claim_retried = True
+                    version = claimed.version
+                    continue
+                record_kid = body.get("recordKid")
+                if key_retried or error.code != "RECORD_ENCRYPTION_VERSION_MISMATCH" or not isinstance(record_kid, str):
+                    raise
+                held = ring.by_id(record_kid)
+                if held is None:
+                    raise RecordsEncryptionError("RECORDS_VERSION_NOT_HELD", v=self._version_number_of(record_kid)) from None
+                key_retried = True
+                version = held.version
         self._version_of[cache_key] = version
+        self._hash_version = hash_version
+        wire_reference_id = sent["wireReferenceId"]
         return {"response": response, "wireRecordId": wire_record_id, "wireReferenceId": wire_reference_id}
 
     def _version_number_of(self, kid: str) -> Union[int, str]:
@@ -355,37 +428,48 @@ class EncryptedRecords:
         ring = self.keys.ring()
         kids = _kids_of(receipts)
         if read.get("grant"):
-            seed = self.own_seed()
+            owner = _owner_of(read.get("owner"))
+            seeds = self.own_seeds()
             got = _unwrap(
                 self._client.get(
                     record_path(record_type, wire_record_id, "/grant-key"),
                     {**(options or {}), "headers": {RECORDS_GRANT_HEADER: read["grant"]}},
                 )
             )
-            opened = A.unwrap_record_key(seed, (got or {}).get("wrap"), record_type, wire_record_id) if seed else None
-            if not opened or not opened["ok"]:
-                raise RecordsEncryptionError("RECORDS_ENTRY_UNOPENED", seq=1)
-            return opened["recordKey"], []
+            rkid = (got or {}).get("rkid")
+            for seed in seeds if isinstance(rkid, str) else []:
+                opened = A.unwrap_record_key_v2(seed, (got or {}).get("wrap"), owner, record_type, wire_record_id, rkid)
+                if opened["ok"]:
+                    return opened["recordKey"], []
+            raise RecordsEncryptionError("RECORDS_ENTRY_UNOPENED", seq=1)
         if read.get("holder_for"):
-            seed = self.own_seed()
+            owner = _owner_of(read["holder_for"])
+            seeds = self.own_seeds()
             holdings = _unwrap(self._client.get(f"{_ENCRYPTION}/holdings", options)).get("holdings") or []
             versions: List[Tuple[int, R.RecordKey]] = []
             for holding in holdings:
-                if holding.get("ownerWorkspaceId") != read["holder_for"] or seed is None:
+                if holding.get("ownerWorkspaceId") != owner:
                     continue
                 held_record = holding.get("record") or {}
                 for w in holding.get("wraps") or []:
                     if w.get("state") == "refused":
                         continue
-                    if holding.get("scope") == "record" and held_record.get("entityId") == wire_record_id and held_record.get("recordType") == record_type:
-                        opened = A.unwrap_record_key(seed, w.get("wrap"), record_type, wire_record_id)
-                        if opened["ok"]:
-                            return opened["recordKey"], []
-                    version, kid = w.get("version"), w.get("kid")
-                    if holding.get("scope") == "workspace" and isinstance(version, int) and isinstance(kid, str) and (not kids or kid in kids):
-                        opened = A.unwrap_records_key(seed, w.get("wrap"), version, kid)
-                        if opened["ok"]:
-                            versions.append((version, R.record_key_of(opened["recordsKey"], wire_record_id)))
+                    for seed in seeds:
+                        if (
+                            holding.get("scope") == "record"
+                            and isinstance(w.get("rkid"), str)
+                            and held_record.get("entityId") == wire_record_id
+                            and held_record.get("recordType") == record_type
+                        ):
+                            opened = A.unwrap_record_key_v2(seed, w.get("wrap"), owner, record_type, wire_record_id, w["rkid"])
+                            if opened["ok"]:
+                                return opened["recordKey"], []
+                        version, kid = w.get("version"), w.get("kid")
+                        if holding.get("scope") == "workspace" and isinstance(version, int) and isinstance(kid, str) and (not kids or kid in kids):
+                            opened = A.unwrap_records_key_v2(seed, w.get("wrap"), owner, version, kid)
+                            if opened["ok"]:
+                                versions.append((version, R.record_key_of(opened["recordsKey"], wire_record_id)))
+                                break
             if not versions:
                 raise RecordsEncryptionError("RECORDS_ENTRY_UNOPENED", seq=1)
             versions.sort(key=lambda pair: -pair[0])
@@ -421,8 +505,10 @@ class EncryptedRecords:
     def open_receipt(
         self, receipt: Dict[str, Any], record_type: str, wire_record_id: str, read: Dict[str, Any], options: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
+        """Opens one v4 receipt, or a v3 record's v5 (card 10)."""
         record_key, _ = self.record_key_for(record_type, wire_record_id, [receipt], read, options)
-        opened = R.open_receipt_v4(AEAD, receipt, record_key, record_type, wire_record_id)
+        open_receipt = R.open_receipt_v5 if receipt.get("schema") == R.SEMANTIC_RECEIPT_SCHEMA_V5 else R.open_receipt_v4
+        opened = open_receipt(AEAD, receipt, record_key, record_type, wire_record_id)
         if not opened["ok"]:
             raise read_refusal(opened)
         return {"entry": receipt["seq"] + 1, "recordHash": opened["recordHash"], "content": opened["content"]}
@@ -463,31 +549,142 @@ class EncryptedRecords:
     def own_identity(self) -> Dict[str, Any]:
         return _unwrap(self._client.get(f"{_ENCRYPTION}/identity")) or {}
 
+    def own_workspace_id(self) -> str:
+        """This workspace's own id, as the API names it: the owner every wrap it makes is bound to."""
+        if self._workspace_id is None:
+            self._workspace_id = _owner_of(self.own_identity().get("workspaceId"))
+        return self._workspace_id
+
+    @staticmethod
+    def _open_seed_of(keyring: R.RecordsKeyring, identity: Dict[str, Any], mismatch: str) -> Union[A.WorkspaceSeed, str, None]:
+        """One identity's seed opened with ``keyring``: None when no wrap
+        opens, "outdated" when every wrap is under a version the keyring
+        doesn't hold. A seed that opens to other key bytes is ``mismatch``."""
+        if not identity.get("xwingPublicId"):
+            return None
+        wraps = [w for w in identity.get("seedWraps") or [] if isinstance(w, dict)]
+        held = [w for w in wraps if w.get("version") in keyring.versions]
+        for seed_wrap in held:
+            opened = A.open_seed_wrap(seed_wrap.get("wrap"), identity["xwingPublicId"], keyring=keyring)
+            if not opened["ok"]:
+                continue
+            if identity.get("xwingPublic") != R.b64url_encode(opened["seed"].public_key):
+                raise RecordsEncryptionError(mismatch)
+            return opened["seed"]
+        return "outdated" if wraps and not held else None
+
     def own_seed(self, ring: Optional[R.RecordsKeyring] = None) -> Optional[A.WorkspaceSeed]:
-        """This workspace's seed, opened with its own secret; None when it has no identity."""
-        keyring = ring or self.keys.ring()
+        """This workspace's seed, opened with its own secret; None when it has no current identity."""
         own = self.own_identity()
         if not own.get("xwingPublicId"):
             return None
-        for seed_wrap in own.get("seedWraps") or []:
-            opened = A.open_seed_wrap(seed_wrap.get("wrap"), own["xwingPublicId"], keyring=keyring)
-            if opened["ok"]:
-                return opened["seed"]
-        raise RecordsEncryptionError("RECORDS_IDENTITY_OTHER")
+        seed = self._open_seed_of(ring or self.keys.ring(), own, "RECORDS_IDENTITY_OTHER")
+        if seed == "outdated":
+            raise RecordsEncryptionError("RECORDS_SECRET_FILE_OUTDATED")
+        if not isinstance(seed, A.WorkspaceSeed):
+            raise RecordsEncryptionError("RECORDS_IDENTITY_OTHER")
+        return seed
+
+    def own_seeds(self) -> List[A.WorkspaceSeed]:
+        """Every seed this workspace's secret opens, current first, then each
+        retired one (card 10, F4): a wrap made to a key before it was
+        replaced still opens. A server still on the file from before a
+        replacement opens the retired seeds only; with none, W-C10-B-18."""
+        ring = self.keys.ring()
+        own = self.own_identity()
+        current = self._open_seed_of(ring, own, "RECORDS_IDENTITY_OTHER")
+        seeds = [current] if isinstance(current, A.WorkspaceSeed) else []
+        for retired in own.get("retiredIdentities") or []:
+            seed = self._open_seed_of(ring, retired, "RECORDS_RETIRED_KEY_MISMATCH")
+            if isinstance(seed, A.WorkspaceSeed):
+                seeds.append(seed)
+        if current == "outdated" and not seeds:
+            raise RecordsEncryptionError("RECORDS_SECRET_FILE_OUTDATED")
+        if own.get("xwingPublicId") and current is None and not seeds:
+            raise RecordsEncryptionError("RECORDS_IDENTITY_OTHER")
+        return seeds
+
+    def _seed_wraps_for(self, ring: R.RecordsKeyring, version: int) -> Optional[Dict[str, Any]]:
+        """The seed of each key this workspace has had, sealed under
+        ``version`` (card 10, F4): the current one must open; a retired one
+        that doesn't is left out. None before the first identity."""
+        own = self.own_identity()
+        seeds: List[A.WorkspaceSeed] = []
+        if own.get("xwingPublicId"):
+            current = self._open_seed_of(ring, own, "RECORDS_IDENTITY_OTHER")
+            if current == "outdated":
+                raise RecordsEncryptionError("RECORDS_SECRET_FILE_OUTDATED")
+            if not isinstance(current, A.WorkspaceSeed):
+                # A next file made from one older than a replacement reuses the
+                # replacement's version number; the file it came from lacks it.
+                served = self.keys.ring()
+                if served is not ring and self._open_seed_of(served, own, "RECORDS_IDENTITY_OTHER") == "outdated":
+                    raise RecordsEncryptionError("RECORDS_SECRET_FILE_OUTDATED")
+                raise RecordsEncryptionError("RECORDS_IDENTITY_OTHER")
+            seeds.append(current)
+        for retired in own.get("retiredIdentities") or []:
+            seed = self._open_seed_of(ring, retired, "RECORDS_RETIRED_KEY_MISMATCH")
+            if isinstance(seed, A.WorkspaceSeed):
+                seeds.append(seed)
+        if not seeds:
+            return None
+        wrap_key = ring.wrap_key(version)
+        return {seed.public_key_id: A.seal_seed_wrap(wrap_key, seed) for seed in seeds}
 
     def register_versions(self) -> None:
+        """Registers each version of the secret the API doesn't list yet."""
         ring = self.keys.ring()
+        listed = _unwrap(self._client.get(f"{_ENCRYPTION}/versions")) or {}
+        registered = {v.get("version") for v in listed.get("versions") or [] if isinstance(v, dict)}
         for version in ring.versions:
-            self._client.put(f"{_ENCRYPTION}/versions/{version}", {"kid": ring.by_version(version).id})
+            if version not in registered:
+                self._put_version(ring, version)
+
+    def _put_version(self, ring: R.RecordsKeyring, version: int) -> Dict[str, Any]:
+        """PUT versions in format 2 (card 10, F3): the version's records key
+        wrapped to each workspace holder whose pin is held, with the holder
+        set those wraps were made for; read again once if that set changed."""
+        records_key = ring.by_version(version)
+        owner = self.own_workspace_id()
+        seed_wraps = self._seed_wraps_for(ring, version)
+        attempt = 0
+        while True:
+            listed = _unwrap(self._client.get(f"{_ENCRYPTION}/holders")) or {}
+            holders: List[Dict[str, Any]] = []
+            holder_wraps: List[Dict[str, Any]] = []
+            for holder in listed.get("holders") or []:
+                if holder.get("scope") != "workspace" or holder.get("removedAt"):
+                    continue
+                try:
+                    public_key, pinned_id = self.pinned(holder["holderWorkspaceId"])
+                    if pinned_id != holder.get("pinnedId"):
+                        raise RecordsEncryptionError("RECORDS_PIN_CHANGED")
+                    wrap = A.wrap_records_key_v2(public_key, records_key, owner)
+                    holder_wraps.append({"holderId": holder["holderId"], "pinnedId": pinned_id, "wrap": wrap})
+                    holders.append({"holderId": holder["holderId"], "workspaceId": holder["holderWorkspaceId"], "wrapped": True})
+                except RecordsEncryptionError as error:
+                    holders.append({"holderId": holder["holderId"], "workspaceId": holder["holderWorkspaceId"], "wrapped": False, "code": error.code})
+            body = {"kid": records_key.id, "wrapFormat": 2, "holderSet": listed.get("holderSet"), "holderWraps": holder_wraps}
+            if seed_wraps:
+                body["seedWraps"] = seed_wraps
+            try:
+                put = _unwrap(self._client.put(f"{_ENCRYPTION}/versions/{version}", body)) or {}
+            except PacSpaceError as error:
+                if attempt == 0 and error.code == "RECORDS_HOLDER_SET_CHANGED":
+                    attempt += 1
+                    continue
+                raise
+            return {"holders": holders, "holdersNeedingConfirmation": list(put.get("holdersNeedingConfirmation") or [])}
 
     def register_identity(self) -> Dict[str, Any]:
         """Registers this workspace's identity and every version of its secret. Idempotent."""
         ring = self.keys.ring()
         own = self.own_identity()
         if own.get("xwingPublicId") and own.get("xwingPublic"):
-            self.own_seed()
-            public = R.b64url_decode(own["xwingPublic"]) or b""
-            result = {"xwingPublicId": own["xwingPublicId"], "code": A.holder_key_code(public), "created": False}
+            seed = self.own_seed()
+            if seed is None:
+                raise RecordsEncryptionError("RECORDS_IDENTITY_OTHER")
+            result = {"xwingPublicId": seed.public_key_id, "code": A.holder_key_code(seed.public_key), "created": False}
         else:
             seed = A.generate_workspace_seed()
             version = ring.current.version
@@ -534,6 +731,7 @@ class EncryptedRecords:
     ) -> Dict[str, Any]:
         ring = self.keys.ring()
         public_key, pinned_id = self.pinned(workspace_id, confirmed_code)
+        owner = self.own_workspace_id()
         self.register_versions()
         body: Dict[str, Any] = {"workspaceId": workspace_id, "scope": scope, "required": required, "pinnedId": pinned_id}
         if record:
@@ -543,12 +741,12 @@ class EncryptedRecords:
         wraps: List[Dict[str, Any]] = []
         if scope == "workspace":
             for version in ring.versions:
-                wrap = A.wrap_records_key(public_key, ring.by_version(version))
+                wrap = A.wrap_records_key_v2(public_key, ring.by_version(version), owner)
                 stored = _unwrap(self._client.put(holder_path, {"version": version, "pinnedId": pinned_id, "wrap": wrap}))
                 wraps.append({"version": version, "state": stored.get("state")})
         elif record:
             record_key, _ = self.own_record_key(record[0], record[1])
-            wrap = A.wrap_record_key(public_key, record_key, record[0], record[1])
+            wrap = A.wrap_record_key_v2(public_key, record_key, record[0], record[1], owner)
             stored = _unwrap(self._client.put(holder_path, {"pinnedId": pinned_id, "rkid": record_key.id, "wrap": wrap}))
             wraps.append({"version": None, "state": stored.get("state")})
         return {"holderId": added["holderId"], "created": added.get("created") is True, "wraps": wraps}
@@ -558,14 +756,16 @@ class EncryptedRecords:
         or refuses it so the writer is told. A workspace wrap's key id is
         recomputed from the opened bytes; a record wrap is confirmed by
         opening one of the record's entries, and waits while the record has none."""
-        seed = self.own_seed()
-        if seed is None:
+        # A wrap made to a key before it was replaced still opens with that key's seed (card 10, F4).
+        seeds = self.own_seeds()
+        if not seeds:
             return []
         holdings = _unwrap(self._client.get(f"{_ENCRYPTION}/holdings")).get("holdings") or []
         results: List[Dict[str, Any]] = []
         for holding in holdings:
             holder_id = holding["holderId"]
             base = f"{_ENCRYPTION}/holdings/{quote(holder_id, safe='')}"
+            owner = _owner_of(holding.get("ownerWorkspaceId"))
             for w in holding.get("wraps") or []:
                 version = w.get("version")
                 if w.get("state") != "stored":
@@ -575,19 +775,23 @@ class EncryptedRecords:
                 reason = "unopened"
                 held_record = holding.get("record")
                 if holding.get("scope") == "workspace" and isinstance(version, int) and isinstance(w.get("kid"), str):
-                    opened = A.unwrap_records_key(seed, w.get("wrap"), version, w["kid"])
-                    if opened["ok"]:
-                        kid = w["kid"]
-                    elif opened.get("code") == "KEY_WRAP_KEY_MISMATCH":
-                        reason = "kid_mismatch"
-                elif holding.get("scope") == "record" and held_record:
+                    for seed in seeds:
+                        opened = A.unwrap_records_key_v2(seed, w.get("wrap"), owner, version, w["kid"])
+                        if opened["ok"]:
+                            kid = w["kid"]
+                            break
+                        if opened.get("code") == "KEY_WRAP_KEY_MISMATCH":
+                            reason = "kid_mismatch"
+                elif holding.get("scope") == "record" and held_record and isinstance(w.get("rkid"), str):
                     record_type, wire_record_id = held_record["recordType"], held_record["entityId"]
-                    opened = A.unwrap_record_key(seed, w.get("wrap"), record_type, wire_record_id)
-                    if opened["ok"]:
-                        kid = self._kid_opened_by(opened["recordKey"], record_type, wire_record_id, holding["ownerWorkspaceId"])
-                        if kid == "none-yet":
-                            results.append({"holderId": holder_id, "version": None, "state": "stored"})
-                            continue
+                    for seed in seeds:
+                        opened = A.unwrap_record_key_v2(seed, w.get("wrap"), owner, record_type, wire_record_id, w["rkid"])
+                        if opened["ok"]:
+                            kid = self._kid_opened_by(opened["recordKey"], record_type, wire_record_id, owner)
+                            break
+                    if kid == "none-yet":
+                        results.append({"holderId": holder_id, "version": None, "state": "stored"})
+                        continue
                 named = {"version": version} if version is not None else {}
                 if kid:
                     self._client.post(f"{base}/confirm", {**named, "kid": kid})
@@ -624,12 +828,14 @@ class EncryptedRecords:
         if history is None:
             return None
         public_key, pinned_id = self.pinned(workspace_id, confirmed_code)
-        return {"pinnedId": pinned_id, "rkid": record_key.id, "wrap": A.wrap_record_key(public_key, record_key, record_type, wire_record_id)}
+        owner = self.own_workspace_id()
+        return {"pinnedId": pinned_id, "rkid": record_key.id, "wrap": A.wrap_record_key_v2(public_key, record_key, record_type, wire_record_id, owner)}
 
     def disclosure_wrap(self, handle: str, disclosure_key: bytes, workspace_id: str, confirmed_code: Optional[str]) -> Dict[str, Any]:
         self.keys.ring()
         public_key, pinned_id = self.pinned(workspace_id, confirmed_code)
-        return {"workspaceId": workspace_id, "pinnedId": pinned_id, "wrap": A.wrap_disclosure_key(public_key, disclosure_key, handle)}
+        owner = self.own_workspace_id()
+        return {"workspaceId": workspace_id, "pinnedId": pinned_id, "wrap": A.wrap_disclosure_key_v2(public_key, disclosure_key, handle, owner)}
 
     def disclosure_key_from_wrap(self, handle: str) -> Optional[bytes]:
         """A disclosure link's key from this workspace's wrap, or None when the sharer stored none for it."""
@@ -642,11 +848,12 @@ class EncryptedRecords:
             if error.status_code in (404, 409):
                 return None
             raise
-        seed = self.own_seed()
-        if seed is None:
-            return None
-        opened = A.unwrap_disclosure_key(seed, (got or {}).get("wrap"), handle)
-        return opened["disclosureKey"] if opened["ok"] else None
+        owner = _owner_of((got or {}).get("ownerWorkspaceId"))
+        for seed in self.own_seeds():
+            opened = A.unwrap_disclosure_key_v2(seed, (got or {}).get("wrap"), owner, handle)
+            if opened["ok"]:
+                return opened["disclosureKey"]
+        return None
 
     # ------------------------------------------------------------ rotate and re-key
 
@@ -662,32 +869,10 @@ class EncryptedRecords:
         if next_ring.versions != expected or not same_earlier:
             raise RecordsEncryptionError("RECORDS_ROTATE_NOT_NEXT")
         records_key = next_ring.by_version(newest)
-        self._client.put(f"{_ENCRYPTION}/versions/{newest}", {"kid": records_key.id})
-
-        own = self.own_identity()
-        if own.get("xwingPublicId") and own.get("xwingPublic"):
-            seed = self.own_seed(ring)
-            if seed is not None:
-                wrap = A.seal_seed_wrap(next_ring.wrap_key(newest), seed)
-                self._client.put(f"{_ENCRYPTION}/identity", {"xwingPublic": own["xwingPublic"], "seedWrap": {"version": newest, "wrap": wrap}})
-
-        holders: List[Dict[str, Any]] = []
-        for holder in _unwrap(self._client.get(f"{_ENCRYPTION}/holders")).get("holders") or []:
-            if holder.get("scope") != "workspace" or holder.get("removedAt"):
-                continue
-            try:
-                public_key, pinned_id = self.pinned(holder["holderWorkspaceId"])
-                if pinned_id != holder.get("pinnedId"):
-                    raise RecordsEncryptionError("RECORDS_PIN_CHANGED")
-                wrap = A.wrap_records_key(public_key, records_key)
-                self._client.put(
-                    f"{_ENCRYPTION}/holders/{quote(holder['holderId'], safe='')}/wraps", {"version": newest, "pinnedId": pinned_id, "wrap": wrap}
-                )
-                holders.append({"holderId": holder["holderId"], "workspaceId": holder["holderWorkspaceId"], "wrapped": True})
-            except RecordsEncryptionError as error:
-                holders.append({"holderId": holder["holderId"], "workspaceId": holder["holderWorkspaceId"], "wrapped": False, "code": error.code})
+        # The new version carries the seed of each key this workspace holds (card 10, F4).
+        added = self._put_version(next_ring, newest)
         self.keys.replace(following)
-        return {"version": newest, "kid": records_key.id, "holders": holders}
+        return {"version": newest, "kid": records_key.id, **added}
 
     def rekey(self, record_type: str, wire_record_id: str, to_version: int) -> Dict[str, Any]:
         """Re-seals each stored entry's same plaintext under the version's
@@ -695,6 +880,7 @@ class EncryptedRecords:
         unchanged), then wraps the new record key to the record's grants and
         record holders whose pins are held. Stops at the first refusal."""
         ring = self.keys.ring()
+        owner = self.own_workspace_id()
         to_key = ring.by_version(to_version)
         if to_key is None:
             raise RecordsEncryptionError("RECORDS_VERSION_NOT_HELD", v=to_version)
@@ -723,7 +909,7 @@ class EncryptedRecords:
                 continue
             try:
                 public_key, pinned_id = self.pinned(grant["counterpartyWorkspaceId"])
-                wrap = A.wrap_record_key(public_key, new_key, record_type, wire_record_id)
+                wrap = A.wrap_record_key_v2(public_key, new_key, record_type, wire_record_id, owner)
                 self._client.put(
                     record_path(record_type, wire_record_id, f"/grants/{quote(grant['grantId'], safe='')}/key-wrap"),
                     {"pinnedId": pinned_id, "rkid": new_key.id, "wrap": wrap},
@@ -746,7 +932,7 @@ class EncryptedRecords:
                 public_key, pinned_id = self.pinned(holder["holderWorkspaceId"])
                 if pinned_id != holder.get("pinnedId"):
                     raise RecordsEncryptionError("RECORDS_PIN_CHANGED")
-                wrap = A.wrap_record_key(public_key, new_key, record_type, wire_record_id)
+                wrap = A.wrap_record_key_v2(public_key, new_key, record_type, wire_record_id, owner)
                 self._client.put(
                     f"{_ENCRYPTION}/holders/{quote(holder['holderId'], safe='')}/wraps", {"pinnedId": pinned_id, "rkid": new_key.id, "wrap": wrap}
                 )

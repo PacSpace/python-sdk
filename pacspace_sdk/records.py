@@ -9,7 +9,7 @@ from .client import HttpClient
 from .errors import PacSpaceError, ValidationError, map_api_error
 from .fingerprint import BLINDING_FILE_SCHEMA, Blinding, Fingerprint, _digests
 from .record_disclosure import _REASONS as _DISCLOSURE_REASONS
-from .record_disclosure import _disclosure_form_of, verify_record_disclosure_v1
+from .record_disclosure import _disclosure_form_of, compute_record_disclosure_digest, verify_record_disclosure_v1
 from .records_words import RecordsEncryptionError
 
 _ENCRYPTION = "/api/v1/records/encryption"
@@ -570,6 +570,7 @@ class RecordsResource:
         *,
         wire_record_id: Optional[str] = None,
         grant: Optional[str] = None,
+        owner: Optional[str] = None,
         holder_for: Optional[str] = None,
         record_key: Optional[str] = None,
         encrypted: Optional[bool] = None,
@@ -578,7 +579,14 @@ class RecordsResource:
         workspace secret, a holder wrap, a grant's wrap or a record key, and
         checked against its sealed record hash (``opened``)."""
         typed = record_type or DEFAULT_RECORD_TYPE
-        read = {"wire_record_id": wire_record_id, "grant": grant, "holder_for": holder_for, "record_key": record_key, "encrypted": encrypted}
+        read = {
+            "wire_record_id": wire_record_id,
+            "grant": grant,
+            "owner": owner,
+            "holder_for": holder_for,
+            "record_key": record_key,
+            "encrypted": encrypted,
+        }
         entity_id, is_encrypted = self._target(typed, record, read)
         path = _record_path(typed, entity_id, f"/receipts/{_seq_of(entry, 'entry')}")
         if not is_encrypted:
@@ -586,7 +594,7 @@ class RecordsResource:
         enc = self._encrypted()
         response = self._client.get(path, enc.request_options(read, options))
         receipt = response.get("receipt") if isinstance(response, dict) else None
-        if not isinstance(receipt, dict) or receipt.get("schema") != "semantic-receipt/v4":
+        if not isinstance(receipt, dict) or receipt.get("schema") not in ("semantic-receipt/v4", "semantic-receipt/v5"):
             return response
         if response.get("recordType") != typed or response.get("entityId") != entity_id:
             raise RecordsEncryptionError("RECORDS_HISTORY_OTHER_RECORD")
@@ -602,6 +610,7 @@ class RecordsResource:
         *,
         wire_record_id: Optional[str] = None,
         grant: Optional[str] = None,
+        owner: Optional[str] = None,
         holder_for: Optional[str] = None,
         record_key: Optional[str] = None,
         encrypted: Optional[bool] = None,
@@ -609,7 +618,14 @@ class RecordsResource:
         """The record's history. An encrypted record's entries are opened and
         each checked against its sealed record hash and its stored references
         (``opened``); a history served for another record is refused."""
-        read = {"wire_record_id": wire_record_id, "grant": grant, "holder_for": holder_for, "record_key": record_key, "encrypted": encrypted}
+        read = {
+            "wire_record_id": wire_record_id,
+            "grant": grant,
+            "owner": owner,
+            "holder_for": holder_for,
+            "record_key": record_key,
+            "encrypted": encrypted,
+        }
         return self._read_history(record, from_entry, to_entry, record_type, options, read, "/history")
 
     def bundle(
@@ -622,12 +638,20 @@ class RecordsResource:
         *,
         wire_record_id: Optional[str] = None,
         grant: Optional[str] = None,
+        owner: Optional[str] = None,
         holder_for: Optional[str] = None,
         record_key: Optional[str] = None,
         encrypted: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """The history as the downloadable file; opened as ``history()`` opens it."""
-        read = {"wire_record_id": wire_record_id, "grant": grant, "holder_for": holder_for, "record_key": record_key, "encrypted": encrypted}
+        read = {
+            "wire_record_id": wire_record_id,
+            "grant": grant,
+            "owner": owner,
+            "holder_for": holder_for,
+            "record_key": record_key,
+            "encrypted": encrypted,
+        }
         return self._read_history(record, from_entry, to_entry, record_type, options, read, "/bundle")
 
     def _read_history(
@@ -723,14 +747,18 @@ class RecordsResource:
         disclosure_key: Union[bytes, str],
         workspace_id: str,
         confirmed_code: Optional[str] = None,
+        access_code: Optional[str] = None,
         record: Optional[str] = None,
         record_type: Optional[str] = None,
         wire_record_id: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Stores a disclosure link's key wrapped to a reader workspace whose
-        code you confirmed, so it opens the link without the part after #."""
-        from .encrypted_records import disclosure_key_of
+        code you confirmed, so it opens the link without the key after #.
+        Give them the link with ``#`` and the returned ``fragment`` (``dd=``,
+        the disclosure's digest): their client opens only the disclosure
+        that digest names."""
+        from .encrypted_records import decrypt_disclosure, disclosure_digest_fragment, disclosure_key_of
 
         typed = record_type or DEFAULT_RECORD_TYPE
         entity_id, _ = self._target(typed, record, {"wire_record_id": wire_record_id})
@@ -738,21 +766,19 @@ class RecordsResource:
         if key is None:
             raise RecordsEncryptionError("RECORDS_LINK_NO_KEY")
         normalized = _normalized_handle(handle)
+        _, envelope = self._link_disclosure(normalized, access_code)
+        opened = decrypt_disclosure(envelope, key, normalized) if isinstance(envelope, str) else None
+        if not opened or not opened["ok"]:
+            raise RecordsEncryptionError("RECORDS_DISCLOSURE_LINK_MISMATCH")
+        digest = compute_record_disclosure_digest(opened["disclosure"])
+        if digest != opened["disclosure"].get("digest"):
+            raise RecordsEncryptionError("RECORDS_DISCLOSURE_LINK_MISMATCH")
         body = self._encrypted().disclosure_wrap(normalized, key, workspace_id, confirmed_code)
-        return self._client.put(_record_path(typed, entity_id, f"/share/{quote(normalized, safe='')}/key-wraps"), body, options)
+        stored = self._client.put(_record_path(typed, entity_id, f"/share/{quote(normalized, safe='')}/key-wraps"), body, options)
+        return {**(stored if isinstance(stored, dict) else {}), "fragment": disclosure_digest_fragment(digest)}
 
-    def open(self, link: str, access_code: Optional[str] = None) -> Dict[str, Any]:
-        """Opens a disclosure link: its seal history and its disclosure,
-        opened with the key after # or, when there is none, with this
-        workspace's wrap, then checked up to each entry's record hash. The
-        seals and the ledger are not checked here."""
-        from .encrypted_records import decrypt_disclosure, read_disclosure_fragment
-
-        url = urlparse(urljoin(self._client.base_url + "/", link))
-        found = re.search(r"/c/([^/]+)/?$", url.path)
-        if found is None:
-            raise _malformed_disclosure()
-        handle = _normalized_handle(found.group(1))
+    def _link_disclosure(self, handle: str, access_code: Optional[str]) -> Tuple[Dict[str, Any], Any]:
+        """A link's seal history and sealed disclosure, read as anyone with the link reads them."""
 
         def path(tail: str) -> str:
             return f"/api/v1/c/{quote(handle, safe='')}{tail}"
@@ -778,11 +804,28 @@ class RecordsResource:
             raise _malformed_disclosure()
         answer = self._client.request_public("GET", path("/disclosure"), headers)
         served = _json_of(answer) if 200 <= answer.status_code < 300 else None
-        envelope = served.get("envelope") if isinstance(served, dict) else None
+        return form, served.get("envelope") if isinstance(served, dict) else None
+
+    def open(self, link: str, access_code: Optional[str] = None) -> Dict[str, Any]:
+        """Opens a disclosure link: its seal history and its disclosure,
+        opened with the key after # or, when there is none, with this
+        workspace's wrap, then checked up to each entry's record hash. The
+        seals and the ledger are not checked here."""
+        from .encrypted_records import decrypt_disclosure, read_link_fragment
+
+        url = urlparse(urljoin(self._client.base_url + "/", link))
+        found = re.search(r"/c/([^/]+)/?$", url.path)
+        if found is None:
+            raise _malformed_disclosure()
+        handle = _normalized_handle(found.group(1))
+        form, envelope = self._link_disclosure(handle, access_code)
         if not isinstance(envelope, str):
             return {"handle": handle, "sealHistory": form, "disclosure": None, "entries": []}
 
-        key = read_disclosure_fragment("#" + url.fragment) if url.fragment else None
+        # Card 10, D1 a: a key from a wrap opens only the disclosure the link's dd= names.
+        fragment = read_link_fragment("#" + url.fragment) if url.fragment else None
+        key = fragment["key"] if fragment and fragment["kind"] == "key" else None
+        expected_digest = None if key is not None else (fragment["digest"] if fragment else "")
         if key is None and self._configured:
             key = self._encrypted().disclosure_key_from_wrap(handle)
         if key is None:
@@ -797,6 +840,8 @@ class RecordsResource:
         checked = verify_record_disclosure_v1(disclosure_form, disclosure)
         if checked["ok"] is False:
             raise PacSpaceError(checked["reason"] or checked["code"], 0, checked["code"])
+        if expected_digest is not None and disclosure.get("digest") != expected_digest:
+            raise RecordsEncryptionError("RECORDS_DISCLOSURE_LINK_MISMATCH")
         return {
             "handle": handle,
             "sealHistory": form,

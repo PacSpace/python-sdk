@@ -214,6 +214,15 @@ class RecordsEncryptionRoundTripTest(unittest.TestCase):
                 opened = R.open_record_entry_envelope(AEAD, envelope, "machine-action", wire, **opener)
                 self.assertEqual([opened["ok"], opened["content"]], [True, content])
 
+    def test_the_records_key_that_opened_the_envelope_is_named_never_only_its_claim(self) -> None:
+        _, ring = self._fresh()
+        wire = R.wire_record_id(ring.id_key, "t", "e")
+        rk = R.record_key_of(ring.current, wire)
+        envelope = R.seal_record_entry(AEAD, rk, "t", wire, {"a": 1}, self.SALT)
+        alone = R.record_key_from_bytes(R.export_key_bytes(rk))
+        named = [R.open_record_entry_envelope(AEAD, envelope, "t", wire, **opener)["recordsKeyId"] for opener in ({"keyring": ring}, {"record_key": rk}, {"record_key": alone})]
+        self.assertEqual(named, [ring.current.id, ring.current.id, None])
+
     def test_every_single_byte_change_is_refused(self) -> None:
         _, ring = self._fresh(1)
         wire = R.wire_record_id(ring.id_key, "t", "e")

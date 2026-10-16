@@ -280,7 +280,7 @@ class HttpClient:
     ) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "pacspace-sdk-python/0.6.0",
+            "User-Agent": "pacspace-sdk-python/0.7.0",
         }
         if authenticated:
             headers["X-Api-Key"] = self._api_key

@@ -74,18 +74,32 @@ class FakeEncryptedApi:
         self.rekeyed: Dict[str, Dict[int, Any]] = {}
         self.writes: Dict[str, List[Dict[str, Any]]] = {}
         self.record_kid: Dict[str, str] = {}
+        # Card 10, F1: intake's RECORDS_HASH_V3, and each encrypted record's stamp.
+        self.hash_v3 = False
+        self.record_hash_version: Dict[str, int] = {}
+        # Card 10, F2: intake's idempotency claims on encrypted writes, when switched on.
+        self.idempotency = False
+        self.claims: Dict[str, Dict[str, Any]] = {}
         self.disclosure_wraps: List[Dict[str, Any]] = []
         self.substituted: Dict[str, Dict[str, str]] = {}
+        self.own_key_swapped: Dict[str, str] = {}
         self.links: Dict[str, Dict[str, Any]] = {}
         self.fail: Optional[Any] = None
         self._next = 1
+        # Card 10, F3: every PUT versions body, and a change counter folded into the holder set token.
+        self.version_puts: List[Dict[str, Any]] = []
+        self.holder_set_epoch = 0
+
+    def holder_set_of(self, workspace_id: str) -> str:
+        ids = sorted(h["holderId"] for h in self.holders if h["ownerWorkspaceId"] == workspace_id and h["scope"] == "workspace" and not h["removedAt"])
+        return json.dumps([self.holder_set_epoch, ids])
 
     def _id(self) -> int:
         self._next += 1
         return self._next
 
     def add_workspace(self, api_key: str, workspace_id: str) -> None:
-        self.workspaces[api_key] = {"apiKey": api_key, "workspaceId": workspace_id, "identity": None, "versions": {}}
+        self.workspaces[api_key] = {"apiKey": api_key, "workspaceId": workspace_id, "identity": None, "retired": [], "versions": {}}
 
     def by_id(self, workspace_id: str) -> Optional[Dict[str, Any]]:
         return next((w for w in self.workspaces.values() if w["workspaceId"] == workspace_id), None)
@@ -140,7 +154,9 @@ class FakeEncryptedApi:
             return self._encryption(caller, enc.group(1), method, body)
         if path == "/api/v1/records/disclosures/key-wrap" and method == "POST":
             found = next((w for w in self.disclosure_wraps if w["handle"] == (body or {}).get("handle") and w["workspaceId"] == caller["workspaceId"]), None)
-            return _ok({"pinnedId": found["pinnedId"], "wrap": found["wrap"]}) if found else _refuse(404, "RECORD_DISCLOSURE_WRAP_NOT_FOUND")
+            if found is None:
+                return _refuse(404, "RECORD_DISCLOSURE_WRAP_NOT_FOUND")
+            return _ok({"ownerWorkspaceId": found["owner"], "pinnedId": found["pinnedId"], "wrap": found["wrap"]})
         rec = re.fullmatch(r"/api/v1/records/([^/]+)/([^/]+)/(.+)", path)
         if rec is None:
             return _refuse(404, "NOT_FOUND")
@@ -151,13 +167,40 @@ class FakeEncryptedApi:
 
         if tail == "transitions" and method == "POST":
             if body.get("envelope"):
+                declared = body.get("recordHashVersion", 2)
+                if declared != (3 if self.hash_v3 else 2):
+                    return _refuse(409, "RECORD_FORMAT_RETIRED") if self.hash_v3 and declared == 2 else _refuse(403, "RECORD_HASH_VERSION_NOT_ENABLED")
+                stamped = self.record_hash_version.get(key)
+                if stamped is not None and stamped != declared:
+                    return _refuse(409, "RECORD_FORMAT_RETIRED") if stamped < declared else _refuse(403, "RECORD_HASH_VERSION_NOT_ENABLED")
+                self.record_hash_version[key] = declared
                 kid = body["envelope"]["kid"]
+                claim: Optional[Dict[str, Any]] = None
+                if self.idempotency:
+                    claim_key = f"{caller['workspaceId']}\0{body.get('referenceId')}"
+                    payload = json.dumps([record_type, entity_id, body.get("lifecycle"), body.get("contentTag")])
+                    existing = self.claims.get(claim_key)
+                    if existing and existing["payload"] != payload and not (existing["status"] == "FAILED" and existing["kid"] != kid):
+                        return _refuse(409, "IDEMPOTENCY_CONFLICT", claimKid=existing["kid"])
+                    if existing and existing["status"] == "COMPLETED":
+                        return _ok(existing["response"])
+                    claim = {"payload": payload, "kid": kid, "status": "PENDING"}
+                    self.claims[claim_key] = claim
                 held = self.record_kid.get(key)
                 if held and held != kid:
+                    if claim:
+                        claim["status"] = "FAILED"
                     return _refuse(409, "RECORD_ENCRYPTION_VERSION_MISMATCH", recordKid=held)
                 if kid not in caller["versions"].values():
+                    if claim:
+                        claim["status"] = "FAILED"
                     return _refuse(409, "RECORD_ENCRYPTION_VERSION_UNREGISTERED")
                 self.record_kid[key] = kid
+                if claim:
+                    self.writes.setdefault(key, []).append({"owner": caller["workspaceId"], "body": body})
+                    response = {"status": "QUEUED", "recordType": record_type, "entityId": entity_id, "recordKey": "0x" + "ab" * 32, "referenceId": body.get("referenceId"), "intakeId": f"in_{self._id()}"}
+                    claim.update(status="COMPLETED", response=response)
+                    return _ok(response)
             self.writes.setdefault(key, []).append({"owner": caller["workspaceId"], "body": body})
             return _ok({"status": "QUEUED", "recordType": record_type, "entityId": entity_id, "recordKey": "0x" + "ab" * 32, "referenceId": body.get("referenceId"), "intakeId": f"in_{self._id()}"})
 
@@ -198,6 +241,8 @@ class FakeEncryptedApi:
             self.rekeyed.setdefault(key, {})[int(swap.group(1))] = body["envelope"]
             return _ok({"seq": int(swap.group(1)), "kid": body["envelope"]["kid"], "recordCompleted": False})
         if tail == "grants" and method == "POST":
+            if body.get("readerWrap") and (body["readerWrap"].get("wrap") or {}).get("v") != 2:
+                return _refuse(400, "RECORD_WRAP_MALFORMED")
             grant = {
                 "grantId": f"grt_{self._id()}",
                 "token": f"rgt_test_{self._id()}",
@@ -235,6 +280,8 @@ class FakeEncryptedApi:
             grant = next((g for g in self.grants if g["grantId"] == grant_wrap.group(1) and g["owner"] == caller["workspaceId"]), None)
             if grant is None:
                 return _refuse(404, "RECEIPT_GRANT_NOT_FOUND")
+            if (body.get("wrap") or {}).get("v") != 2:
+                return _refuse(400, "RECORD_WRAP_MALFORMED")
             grant["readerWrap"] = {"pinnedId": body["pinnedId"], "rkid": body["rkid"], "wrap": body["wrap"]}
             return _ok({"grantId": grant["grantId"], "readerWrap": {"pinnedId": body["pinnedId"], "rkid": body["rkid"]}})
         revoke = re.fullmatch(r"grants/([^/]+)/revoke", tail)
@@ -254,13 +301,53 @@ class FakeEncryptedApi:
             return _ok({"grantId": grant["grantId"], **grant["readerWrap"]})
         share = re.fullmatch(r"share/([^/]+)/key-wraps", tail)
         if share and method == "PUT":
-            self.disclosure_wraps.append({"handle": unquote(share.group(1)), "workspaceId": body["workspaceId"], "pinnedId": body["pinnedId"], "wrap": body["wrap"]})
+            if (body.get("wrap") or {}).get("v") != 2:
+                return _refuse(400, "RECORD_WRAP_MALFORMED")
+            self.disclosure_wraps.append(
+                {"handle": unquote(share.group(1)), "owner": caller["workspaceId"], "workspaceId": body["workspaceId"], "pinnedId": body["pinnedId"], "wrap": body["wrap"]}
+            )
             return _ok({"readerWorkspaceId": body["workspaceId"], "pinnedId": body["pinnedId"], "stored": True})
         return _refuse(404, "NOT_FOUND")
 
+    # Card 10, F4: the API's carried rule. A new version carries the current
+    # key's seed and each retired key's with a seed wrap at the newest version.
+    def _carried(self, w: Dict[str, Any]) -> List[str]:
+        newest = max(w["versions"].keys(), default=0)
+        ids = [w["identity"]["xwingPublicId"]] if w["identity"] else []
+        return ids + [r["xwingPublicId"] for r in w["retired"] if any(s["version"] == newest for s in r["seedWraps"])]
+
+    def _seed_wraps_refusal(self, w: Dict[str, Any], sent: Optional[Dict[str, Any]]) -> Optional[TransportResponse]:
+        allowed = ([w["identity"]["xwingPublicId"]] if w["identity"] else []) + [r["xwingPublicId"] for r in w["retired"]]
+        ids = list((sent or {}).keys())
+        if any(i not in allowed for i in ids):
+            return _refuse(409, "RECORDS_IDENTITY_SET_CHANGED")
+        if any(i not in ids for i in self._carried(w)):
+            return _refuse(409, "RECORDS_IDENTITY_SET_CHANGED" if ids else "RECORDS_WRAP_FORMAT_REQUIRED")
+        return None
+
+    @staticmethod
+    def store_seed_wraps(w: Dict[str, Any], version: int, sent: Optional[Dict[str, Any]]) -> None:
+        for key_id, wrap in (sent or {}).items():
+            identity = w["identity"] if w["identity"] and w["identity"]["xwingPublicId"] == key_id else next(r for r in w["retired"] if r["xwingPublicId"] == key_id)
+            identity["seedWraps"] = [*(s for s in identity["seedWraps"] if s["version"] != version), {"version": version, "wrap": wrap}]
+
+    def replace_identity(self, api_key: str, version: int, kid: str, seed_wraps: Dict[str, Any], xwing_public: str) -> None:
+        """What the key pages' replacement leaves (card 10, F4): the current key
+        retired, the new one current, and the new version with both seeds."""
+        w = self.workspaces[api_key]
+        w["retired"].append({**w["identity"], "retiredAt": "2026-10-16T00:00:00.000Z"})
+        w["identity"] = {"xwingPublic": xwing_public, "xwingPublicId": A.public_key_id(R.b64url_decode(xwing_public)), "seedWraps": []}
+        w["versions"][version] = kid
+        self.store_seed_wraps(w, version, seed_wraps)
+
     def _encryption(self, caller: Dict[str, Any], route: str, method: str, body: Any) -> TransportResponse:
         if route == "identity" and method == "GET":
-            return _ok(caller["identity"] or {"xwingPublic": None, "xwingPublicId": None, "seedWraps": []})
+            swapped = self.own_key_swapped.get(caller["workspaceId"])
+            own = {"workspaceId": caller["workspaceId"], "holderSet": self.holder_set_of(caller["workspaceId"])}
+            own["retiredIdentities"] = [dict(r) for r in caller["retired"]]
+            if swapped and caller["identity"]:
+                return _ok({**own, **caller["identity"], "xwingPublic": swapped})
+            return _ok({**own, **(caller["identity"] or {"xwingPublic": None, "xwingPublicId": None, "seedWraps": []})})
         if route == "identity" and method == "PUT":
             public_id = A.public_key_id(R.b64url_decode(body["xwingPublic"]))
             if caller["identity"] and caller["identity"]["xwingPublicId"] != public_id:
@@ -283,9 +370,33 @@ class FakeEncryptedApi:
         version = re.fullmatch(r"versions/(\d+)", route)
         if version and method == "PUT":
             v = int(version.group(1))
-            created = caller["versions"].get(v) != body["kid"]
+            held = caller["versions"].get(v)
+            if held is not None and held != body["kid"]:
+                return _refuse(409, "RECORD_ENCRYPTION_VERSION_CONFLICT")
+            if held is None and v > 1 and body.get("wrapFormat") != 2:
+                return _refuse(409, "RECORDS_WRAP_FORMAT_REQUIRED")
+            if held is None:
+                refused = self._seed_wraps_refusal(caller, body.get("seedWraps"))
+                if refused is not None:
+                    return refused
+                self.store_seed_wraps(caller, v, body.get("seedWraps"))
+            current = [h for h in self.holders if h["ownerWorkspaceId"] == caller["workspaceId"] and h["scope"] == "workspace" and not h["removedAt"]]
+            if body.get("wrapFormat") == 2:
+                if body.get("holderSet") != self.holder_set_of(caller["workspaceId"]):
+                    return _refuse(409, "RECORDS_HOLDER_SET_CHANGED")
+                for w in body.get("holderWraps") or []:
+                    holder = next((h for h in current if h["holderId"] == w.get("holderId")), None)
+                    if holder is None:
+                        return _refuse(409, "RECORDS_HOLDER_SET_CHANGED")
+                    if (w.get("wrap") or {}).get("v") != 2:
+                        return _refuse(400, "RECORD_WRAP_MALFORMED")
+                    if held is None:
+                        holder["wraps"] = [*(x for x in holder["wraps"] if x["version"] != v), {"version": v, "wrap": w["wrap"], "rkid": None, "state": "stored"}]
             caller["versions"][v] = body["kid"]
-            return _ok({"version": v, "kid": body["kid"], "created": created})
+            self.version_puts.append({"workspaceId": caller["workspaceId"], "version": v, "body": body})
+            wrapped = {w.get("holderId") for w in body.get("holderWraps") or []}
+            needing = [h["holderId"] for h in current if h["holderId"] not in wrapped]
+            return _ok({"version": v, "kid": body["kid"], "created": held is None, "holdersNeedingConfirmation": needing})
         if route == "versions" and method == "GET":
             return _ok({"versions": [{"version": v, "kid": kid} for v, kid in caller["versions"].items()]})
         if route == "holders" and method == "POST":
@@ -315,6 +426,7 @@ class FakeEncryptedApi:
         if route == "holders" and method == "GET":
             return _ok(
                 {
+                    "holderSet": self.holder_set_of(caller["workspaceId"]),
                     "holders": [
                         {**{k: v for k, v in h.items() if k != "wraps"}, "wraps": [{"version": w["version"], "state": w["state"]} for w in h["wraps"]]}
                         for h in self.holders
@@ -336,6 +448,8 @@ class FakeEncryptedApi:
                 return _refuse(404, "RECORD_HOLDER_NOT_FOUND")
             if body["pinnedId"] != holder["pinnedId"]:
                 return _refuse(409, "RECORD_HOLDER_PIN_MISMATCH")
+            if (body.get("wrap") or {}).get("v") != 2:
+                return _refuse(400, "RECORD_WRAP_MALFORMED")
             v = body.get("version")
             holder["wraps"] = [*(w for w in holder["wraps"] if w["version"] != v), {"version": v, "wrap": body["wrap"], "rkid": body.get("rkid"), "state": "stored"}]
             return _ok({"holderId": holder["holderId"], "version": v, "state": "stored", "stored": True})
@@ -352,6 +466,7 @@ class FakeEncryptedApi:
                             {
                                 "version": w["version"],
                                 "kid": None if w["version"] is None or owner is None else owner["versions"].get(w["version"]),
+                                "rkid": w["rkid"] if w["version"] is None else None,
                                 "wrap": w["wrap"],
                                 "state": w["state"],
                             }

@@ -1,13 +1,14 @@
-"""record-disclosure/v1, checked up to the record hash (record hash v2).
+"""record-disclosure/v1 and v2, checked up to the record hash and the seal
+(record hash v2 and v3).
 
 A disclosure shows chosen fields of chosen entries of one record. This module
-checks each shown field against its entry's leaves, the leaves against the
-record hash the record's seal history gives for that entry, and nothing
-further: it has no keccak256, so it does not recompute a seal, a word, an
-item hash, a Merkle path or a v1 record hash, and it reads no ledger. Every
-result says so in ``chainCheck`` and ``chainCheckNote``; the seal and ledger
-check is ``@pacspace-io/check``'s. It uses ``hashlib`` and ``hmac`` only, and
-its own RFC 8785 serializer.
+checks each shown field against its entry's leaves or items, those against
+the record hash the record's seal history gives for that entry, and the seal
+over that hash against the entry's word (record_seal.py). It does not
+recompute an item hash's Merkle path and reads no ledger. Every result says
+so in ``chainCheck`` and ``chainCheckNote``; the ledger check is
+``@pacspace-io/check``'s. It uses ``hashlib``, ``hmac`` and the module's own
+keccak256 only, and its own RFC 8785 serializer.
 """
 
 from __future__ import annotations
@@ -22,25 +23,42 @@ from typing import Any, Dict, List, Optional, Tuple
 __all__ = [
     "canonicalize_jcs",
     "commit_record_content_v2",
+    "commit_record_content_v3",
     "compute_leaf_hash_v2",
+    "compute_leaf_hash_v3",
+    "compute_record_disclosure_digest",
     "compute_record_disclosure_digest_v1",
     "compute_record_hash_v2",
+    "compute_record_hash_v3",
     "derive_leaf_salt_v2",
+    "derive_leaf_salt_v3",
+    "member_tag_v3",
+    "open_record_entry_v3",
     "record_leaves_v2",
+    "validate_record_items_v3",
     "verify_record_disclosure_v1",
     "verify_record_link_copy_v1",
 ]
 
 RECORD_DISCLOSURE_SCHEMA_V1 = "record-disclosure/v1"
+RECORD_DISCLOSURE_SCHEMA_V2 = "record-disclosure/v2"
 RECORD_LINK_COPY_SCHEMA_V1 = "record-link-copy/v1"
 RECORD_SEAL_HISTORY_SCHEMA_V1 = "record-seal-history/v1"
 RECORD_DISCLOSURE_MAX_BYTES_V1 = 1048576
 RECORD_LEAVES_MAX_V2 = 65535
+RECORD_ITEMS_MAX_V3 = 65535
+RECORD_SLOT_WHOLE_V3 = 0xFFFF
+_ELEMENT_INDEX_MAX_V3 = 65534
 
 _LABEL_SALT = b"pacspace:record-leaf-salt:v2"
 _LABEL_LEAF = b"pacspace:record-leaf:v2"
 _LABEL_RECORD = b"pacspace:record:v2"
 _LABEL_DIGEST = b"pacspace:record-disclosure-digest:v1"
+_LABEL_DIGEST_V2 = b"pacspace:record-disclosure-digest:v2"
+_LABEL_MEMBER_V3 = b"pacspace:record-member:v3"
+_LABEL_SALT_V3 = b"pacspace:record-leaf-salt:v3"
+_LABEL_LEAF_V3 = b"pacspace:record-leaf:v3"
+_LABEL_RECORD_V3 = b"pacspace:record:v3"
 
 _HEX32 = re.compile(r"0x[0-9a-f]{64}")
 _ADDRESS = re.compile(r"0x[0-9a-f]{40}")
@@ -56,11 +74,19 @@ _REASONS = {
     "DISCLOSURE_RECORD_MISMATCH": lambda n: "This disclosure is for a different record than the history it was checked against.",
     "DISCLOSURE_ENTRY_NOT_IN_HISTORY": lambda n: f"Entry {n} of this disclosure is not in the record's sealed history.",
     "DISCLOSURE_LEAF_MISMATCH": lambda n: f"A shown field of entry {n} does not match the fields sealed for that entry.",
-    "DISCLOSURE_SEAL_MISMATCH": lambda n: f"Entry {n} of this disclosure does not match the record hash in the record's sealed history.",
+    "DISCLOSURE_SEAL_MISMATCH": lambda n: f"Entry {n} of this disclosure does not reproduce the seal recorded on the ledger for it.",
+    "RECORD_HASH_VERSION_MISMATCH": lambda n: "This shared record's format doesn't match the record on the ledger.",
 }
+
+
+def _record_hash_mismatch(n: int) -> str:
+    return f"Entry {n} of this disclosure does not match the record hash in the record's sealed history."
+
+
+
 _CHAIN_CHECK_NOTE = (
-    "This check covers each shown field up to its record hash and compares it with the record's seal history. "
-    "It does not check the seal or the ledger; run @pacspace-io/check for that."
+    "This check covers each shown field up to its record hash and its seal, and compares them with the record's seal history. "
+    "It does not check the ledger; run @pacspace-io/check for that."
 )
 _NOTE_V1 = "This entry was sealed before record hash v2; check it with @pacspace-io/check."
 _NOTE_NO_RECORD_HASH = (
@@ -301,12 +327,161 @@ def commit_record_content_v2(content: Dict[str, Any], salt_key: str) -> Dict[str
     return {"recordHash": compute_record_hash_v2(leaves), "leaves": leaves, "revealed": revealed}
 
 
+# ------------------------------------------------------------ record hash v3
+
+_NOT_CANONICAL_V3 = "This entry's sealed fields are not in their canonical form."
+
+
+def _parse_pointer_v3(pointer: Any) -> Optional[Tuple[str, Optional[int]]]:
+    """A v3 pointer's member name and element index (at most 65534), or None."""
+    parsed = _parse_pointer(pointer)
+    if parsed is None or (parsed[1] is not None and parsed[1] > _ELEMENT_INDEX_MAX_V3):
+        return None
+    return parsed
+
+
+def member_tag_v3(key: str) -> str:
+    """SHA-256("pacspace:record-member:v3" || 0x00 || UTF-8(escaped member name))."""
+    return "0x" + hashlib.sha256(_LABEL_MEMBER_V3 + b"\x00" + _utf8(_escape_segment(key))).hexdigest()
+
+
+def derive_leaf_salt_v3(salt_key: str, pointer: str) -> str:
+    if not _is_hex32(salt_key):
+        raise ValueError("a salt key is 0x plus 64 lowercase hex")
+    message = _LABEL_SALT_V3 + b"\x00" + _utf8(pointer)
+    return "0x" + hmac.new(bytes.fromhex(salt_key[2:]), message, hashlib.sha256).hexdigest()
+
+
+def compute_leaf_hash_v3(leaf: Dict[str, Any]) -> str:
+    salt = leaf.get("salt")
+    if not _is_hex32(salt):
+        raise ValueError("a leaf salt is 0x plus 64 lowercase hex")
+    message = _utf8(canonicalize_jcs([leaf["pointer"], leaf["value"]]))
+    return "0x" + hashlib.sha256(_LABEL_LEAF_V3 + b"\x00" + bytes.fromhex(salt[2:]) + message).hexdigest()
+
+
+def _is_slot(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= RECORD_SLOT_WHOLE_V3
+
+
+def validate_record_items_v3(items: Any) -> bool:
+    """True when the items are well formed, strictly ascending, and every group is one whole item or slots 0..m-1."""
+    if not isinstance(items, list) or len(items) > RECORD_ITEMS_MAX_V3:
+        return False
+    group_tag: Optional[str] = None
+    group_whole = False
+    next_slot = 0
+    for index, item in enumerate(items):
+        if not isinstance(item, list) or len(item) != 3:
+            return False
+        tag, slot, leaf_hash = item
+        if not _is_hex32(tag) or not _is_slot(slot) or not _is_hex32(leaf_hash):
+            return False
+        if index > 0 and (items[index - 1][0], items[index - 1][1]) >= (tag, slot):
+            return False
+        if tag != group_tag:
+            group_tag = tag
+            group_whole = slot == RECORD_SLOT_WHOLE_V3
+            if not group_whole and slot != 0:
+                return False
+            next_slot = 1
+            continue
+        if group_whole or slot == RECORD_SLOT_WHOLE_V3 or slot != next_slot:
+            return False
+        next_slot += 1
+    return True
+
+
+def compute_record_hash_v3(items: List[List[Any]]) -> str:
+    """SHA-256("pacspace:record:v3" || 0x00 || u16be(n) || item_1 || ... || item_n)."""
+    if not validate_record_items_v3(items):
+        raise ValueError("record items must be well formed, strictly ascending and grouped")
+    body = b"".join(bytes.fromhex(tag[2:]) + slot.to_bytes(2, "big") + bytes.fromhex(leaf[2:]) for tag, slot, leaf in items)
+    return "0x" + hashlib.sha256(_LABEL_RECORD_V3 + b"\x00" + len(items).to_bytes(2, "big") + body).hexdigest()
+
+
+def _item_of_v3(leaf: Dict[str, Any]) -> Optional[List[Any]]:
+    parsed = _parse_pointer_v3(leaf.get("pointer"))
+    if parsed is None:
+        return None
+    key, index = parsed
+    return [member_tag_v3(key), RECORD_SLOT_WHOLE_V3 if index is None else index, compute_leaf_hash_v3(leaf)]
+
+
+def commit_record_content_v3(content: Dict[str, Any], salt_key: str) -> Dict[str, Any]:
+    """The record hash, every item (sorted) and every leaf with its salt (by pointer)."""
+    revealed = []
+    items = []
+    for field in record_leaves_v2(content):
+        if _parse_pointer_v3(field["pointer"]) is None:
+            raise ValueError(_NOT_CANONICAL_V3)
+        leaf = {"pointer": field["pointer"], "value": field["value"], "salt": derive_leaf_salt_v3(salt_key, field["pointer"])}
+        revealed.append(leaf)
+        items.append(_item_of_v3(leaf))
+    items.sort(key=lambda item: (item[0], item[1]))
+    return {"recordHash": compute_record_hash_v3(items), "items": items, "revealed": revealed}
+
+
+def open_record_entry_v3(entry: Any, every: bool) -> Dict[str, Any]:
+    """Opens a v3 entry ({items, revealed}): each shown leaf's recomputed item
+    must equal one item exactly; a whole leaf holding a non-empty list is
+    refused; ``every`` requires all items shown and the content canonical.
+    ``failure`` is ``malformed``, ``leaf-mismatch`` or ``not-canonical``."""
+    items = entry.get("items") if isinstance(entry, dict) else None
+    revealed = entry.get("revealed") if isinstance(entry, dict) else None
+    if not validate_record_items_v3(items) or not isinstance(revealed, list) or len(revealed) > len(items):
+        return {"ok": False, "failure": "malformed"}
+    for index, leaf in enumerate(revealed):
+        if not isinstance(leaf, dict) or not _is_hex32(leaf.get("salt")) or "value" not in leaf:
+            return {"ok": False, "failure": "malformed"}
+        parsed = _parse_pointer_v3(leaf.get("pointer"))
+        if parsed is None:
+            return {"ok": False, "failure": "malformed"}
+        if index > 0 and not _utf16_key(revealed[index - 1]["pointer"]) < _utf16_key(leaf["pointer"]):
+            return {"ok": False, "failure": "malformed"}
+        if parsed[1] is None and isinstance(leaf["value"], list) and leaf["value"]:
+            return {"ok": False, "failure": "malformed"}
+        if _has_lone_surrogate(leaf["value"]):
+            return {"ok": False, "failure": "malformed"}
+        try:
+            canonicalize_jcs(leaf["value"])
+        except (JcsError, RecursionError):
+            return {"ok": False, "failure": "malformed"}
+    by_prefix = {(tag, slot): leaf_hash for tag, slot, leaf_hash in items}
+    for leaf in revealed:
+        tag, slot, leaf_hash = _item_of_v3(leaf)
+        if by_prefix.get((tag, slot)) != leaf_hash:
+            return {"ok": False, "failure": "leaf-mismatch"}
+    fields = [{"pointer": leaf["pointer"], "value": leaf["value"]} for leaf in revealed]
+    full = len(revealed) == len(items)
+    content = _record_content_from_leaves(fields) if full else None
+    if every and (not full or content is None):
+        return {"ok": False, "failure": "not-canonical"}
+    return {
+        "ok": True,
+        "recordHash": compute_record_hash_v3(items),
+        "fields": fields,
+        "withheld": len(items) - len(revealed),
+        "content": content,
+    }
+
+
 # --------------------------------------------------------- record-disclosure/v1
 
 
-def compute_record_disclosure_digest_v1(disclosure: Dict[str, Any]) -> str:
+def _digest_under(label: bytes, disclosure: Dict[str, Any]) -> str:
     rest = {key: value for key, value in disclosure.items() if key != "digest"}
-    return "0x" + hashlib.sha256(_LABEL_DIGEST + b"\x00" + _utf8(canonicalize_jcs(rest))).hexdigest()
+    return "0x" + hashlib.sha256(label + b"\x00" + _utf8(canonicalize_jcs(rest))).hexdigest()
+
+
+def compute_record_disclosure_digest_v1(disclosure: Dict[str, Any]) -> str:
+    return _digest_under(_LABEL_DIGEST, disclosure)
+
+
+def compute_record_disclosure_digest(disclosure: Dict[str, Any]) -> str:
+    """A disclosure's digest under its own schema's label (v1 or v2)."""
+    v2 = disclosure.get("schema") == RECORD_DISCLOSURE_SCHEMA_V2
+    return _digest_under(_LABEL_DIGEST_V2 if v2 else _LABEL_DIGEST, disclosure)
 
 
 def _is_int(value: Any) -> bool:
@@ -355,13 +530,13 @@ def _leaves_ok(leaves: Any) -> bool:
     return all(_is_hex32(leaf) and (index == 0 or leaves[index - 1] < leaf) for index, leaf in enumerate(leaves))
 
 
-def _revealed_ok(revealed: Any, leaf_count: int) -> bool:
+def _revealed_ok(revealed: Any, leaf_count: int, parse_pointer: Any = _parse_pointer) -> bool:
     if not isinstance(revealed, list) or len(revealed) > leaf_count:
         return False
     for index, leaf in enumerate(revealed):
         if not isinstance(leaf, dict) or not _has_exactly(leaf, ("pointer", "value", "salt")):
             return False
-        if _parse_pointer(leaf["pointer"]) is None or not _is_hex32(leaf["salt"]) or _has_lone_surrogate(leaf["value"]):
+        if parse_pointer(leaf["pointer"]) is None or not _is_hex32(leaf["salt"]) or _has_lone_surrogate(leaf["value"]):
             return False
         if index > 0 and not _utf16_key(revealed[index - 1]["pointer"]) < _utf16_key(leaf["pointer"]):
             return False
@@ -371,6 +546,12 @@ def _revealed_ok(revealed: Any, leaf_count: int) -> bool:
 def _entry_ok(entry: Any, version: int) -> bool:
     if not isinstance(entry, dict) or not _is_uint32(entry.get("seq")) or not _is_hex32(entry.get("recordOpening")):
         return False
+    if version == 3:
+        return (
+            _has_exactly(entry, ("seq", "recordOpening", "items", "revealed"))
+            and validate_record_items_v3(entry["items"])
+            and _revealed_ok(entry["revealed"], len(entry["items"]), _parse_pointer_v3)
+        )
     if version == 1:
         content = entry.get("recordContent")
         return (
@@ -390,7 +571,8 @@ def _disclosure_ok(d: Dict[str, Any]) -> bool:
     if not _chain_ok(d["chain"], True) or not _layout_ok(d["layout"], True):
         return False
     version = d["recordHashVersion"]
-    if isinstance(version, bool) or version not in (1, 2):
+    allowed = (3,) if d["schema"] == RECORD_DISCLOSURE_SCHEMA_V2 else (1, 2)
+    if isinstance(version, bool) or version not in allowed:
         return False
     entries = d["entries"]
     if not isinstance(entries, list) or not entries:
@@ -405,6 +587,8 @@ def _disclosure_ok(d: Dict[str, Any]) -> bool:
 
 def _form_ok(form: Any) -> bool:
     if not isinstance(form, dict) or not _is_hex32(form.get("recordKey")):
+        return False
+    if "recordHashVersion" in form and (isinstance(form["recordHashVersion"], bool) or form["recordHashVersion"] != 3):
         return False
     if not _chain_ok(form.get("chain"), False) or not _layout_ok(form.get("layout"), False):
         return False
@@ -433,8 +617,10 @@ def _result(
     entries: List[Dict[str, Any]],
     code: Optional[str] = None,
     seq: Optional[int] = None,
+    reason: Optional[str] = None,
 ) -> Dict[str, Any]:
-    reason = None if code is None else _REASONS[code](0 if seq is None else seq + 1)
+    if code is not None and reason is None:
+        reason = _REASONS[code](0 if seq is None else seq + 1)
     return {
         "ok": ok,
         "code": code,
@@ -446,8 +632,8 @@ def _result(
     }
 
 
-def _refuse(code: str, seq: Optional[int] = None) -> Dict[str, Any]:
-    return _result(False, [], code, seq)
+def _refuse(code: str, seq: Optional[int] = None, reason: Optional[str] = None) -> Dict[str, Any]:
+    return _result(False, [], code, seq, reason)
 
 
 def _not_checked(seq: int, note: str) -> Dict[str, Any]:
@@ -455,10 +641,10 @@ def _not_checked(seq: int, note: str) -> Dict[str, Any]:
 
 
 def verify_record_disclosure_v1(form: Any, disclosure: Any) -> Dict[str, Any]:
-    """Checks a record-disclosure/v1 against the record's seal history form
-    (the ``SealHistoryEntryForDisclosureV1`` shape), up to each entry's record
-    hash. ``ok`` is True only when every entry is ``checked``, False on a
-    refusal, and None otherwise. Never raises."""
+    """Checks a record-disclosure/v1 or v2 against the record's seal history
+    form (the ``SealHistoryFormForDisclosureV1`` shape), up to each entry's
+    record hash and seal. ``ok`` is True only when every entry is
+    ``checked``, False on a refusal, and None otherwise. Never raises."""
     try:
         return _verify(form, disclosure)
     except Exception:  # noqa: BLE001 - the verifier returns a result and never raises
@@ -466,7 +652,7 @@ def verify_record_disclosure_v1(form: Any, disclosure: Any) -> Dict[str, Any]:
 
 
 def _verify(form: Any, d: Any) -> Dict[str, Any]:
-    if not isinstance(d, dict) or d.get("schema") != RECORD_DISCLOSURE_SCHEMA_V1:
+    if not isinstance(d, dict) or d.get("schema") not in (RECORD_DISCLOSURE_SCHEMA_V1, RECORD_DISCLOSURE_SCHEMA_V2):
         return _refuse("DISCLOSURE_MALFORMED")
     try:
         canonical = canonicalize_jcs(d)
@@ -476,7 +662,7 @@ def _verify(form: Any, d: Any) -> Dict[str, Any]:
         return _refuse("DISCLOSURE_TOO_LARGE")
     if not _disclosure_ok(d) or not _form_ok(form):
         return _refuse("DISCLOSURE_MALFORMED")
-    if compute_record_disclosure_digest_v1(d) != d["digest"]:
+    if compute_record_disclosure_digest(d) != d["digest"]:
         return _refuse("DISCLOSURE_DIGEST_MISMATCH")
     if (
         d["recordKey"] != form["recordKey"]
@@ -487,6 +673,8 @@ def _verify(form: Any, d: Any) -> Dict[str, Any]:
         or d["layout"]["layoutDigest"] != form["layout"]["layoutDigest"]
     ):
         return _refuse("DISCLOSURE_RECORD_MISMATCH")
+    if (form.get("recordHashVersion") == 3) != (d["schema"] == RECORD_DISCLOSURE_SCHEMA_V2):
+        return _refuse("RECORD_HASH_VERSION_MISMATCH")
 
     by_seq = {e["seq"]: e for e in form["entries"]}
     out: List[Dict[str, Any]] = []
@@ -495,46 +683,68 @@ def _verify(form: Any, d: Any) -> Dict[str, Any]:
         form_entry = by_seq.get(seq)
         if form_entry is None:
             return _refuse("DISCLOSURE_ENTRY_NOT_IN_HISTORY", seq)
-        if "leaves" not in entry:
+        if "recordContent" in entry:
             out.append(_not_checked(seq, _NOTE_V1))
             continue
+        if "items" in entry:
+            opened = open_record_entry_v3(entry, every=False)
+            if not opened["ok"]:
+                return _refuse("DISCLOSURE_LEAF_MISMATCH" if opened["failure"] == "leaf-mismatch" else "DISCLOSURE_MALFORMED", seq)
+            record_hash, fields, withheld, content = opened["recordHash"], opened["fields"], opened["withheld"], opened["content"]
+        else:
+            known = set(entry["leaves"])
+            for leaf in entry["revealed"]:
+                canonicalize_jcs(leaf["value"])
+                if compute_leaf_hash_v2(leaf) not in known:
+                    return _refuse("DISCLOSURE_LEAF_MISMATCH", seq)
+            fields = [{"pointer": leaf["pointer"], "value": leaf["value"]} for leaf in entry["revealed"]]
+            full = len(entry["revealed"]) == len(entry["leaves"])
+            record_hash = compute_record_hash_v2(entry["leaves"])
+            withheld = len(entry["leaves"]) - len(entry["revealed"])
+            content = _record_content_from_leaves(fields) if full else None
         if "recordHash" not in form_entry:
             out.append(_not_checked(seq, _NOTE_NO_RECORD_HASH))
             continue
-        known = set(entry["leaves"])
-        for leaf in entry["revealed"]:
-            canonicalize_jcs(leaf["value"])
-            if compute_leaf_hash_v2(leaf) not in known:
-                return _refuse("DISCLOSURE_LEAF_MISMATCH", seq)
-        fields = [{"pointer": leaf["pointer"], "value": leaf["value"]} for leaf in entry["revealed"]]
-        full = len(entry["revealed"]) == len(entry["leaves"])
-        if compute_record_hash_v2(entry["leaves"]) != form_entry["recordHash"]:
+        if record_hash != form_entry["recordHash"]:
+            return _refuse("DISCLOSURE_SEAL_MISMATCH", seq, _record_hash_mismatch(seq + 1))
+        if not _seal_reproduces(d, entry, form_entry, record_hash):
             return _refuse("DISCLOSURE_SEAL_MISMATCH", seq)
         out.append(
-            {
-                "seq": seq,
-                "status": "checked",
-                "fields": fields,
-                "withheld": len(entry["leaves"]) - len(entry["revealed"]),
-                "content": _record_content_from_leaves(fields) if full else None,
-                "note": None,
-            }
+            {"seq": seq, "status": "checked", "fields": fields, "withheld": withheld, "content": content, "note": None}
         )
     every = all(entry["status"] == "checked" for entry in out)
     return _result(True if every else None, out)
 
 
+def _seal_reproduces(d: Dict[str, Any], entry: Dict[str, Any], form_entry: Dict[str, Any], record_hash: str) -> bool:
+    """The seal over the entry's record hash (wrapped for version 3) carries the form word's seal tag."""
+    from .record_seal import compute_seal_v1, seal_input_hash, seal_tag_of_v1, split_word_v1
+
+    state96, seal_tag = split_word_v1(form_entry["newWord"])
+    layout = d["layout"]
+    seal = compute_seal_v1(
+        layout["layoutId"],
+        layout["layoutVersion"],
+        layout["layoutDigest"],
+        state96,
+        seal_input_hash(d["recordHashVersion"], record_hash),
+        entry["recordOpening"],
+    )
+    return seal_tag_of_v1(seal) == seal_tag
+
+
 def _disclosure_form_of(seal_history: Dict[str, Any], disclosure: Any) -> Optional[Dict[str, Any]]:
     """The form ``disclosureFormOfV1`` builds from a seal history: record key,
-    chain and layout from the history, and the history's entries for the
-    disclosed seqs, in seq order, with ``recordHash`` for a v2 disclosure.
-    None when a disclosed seq is not in the history, or a v2 disclosure meets
-    a history entry with no record hash."""
+    chain and layout from the history (and ``recordHashVersion: 3`` when the
+    history has it), and the history's entries for the disclosed seqs, in seq
+    order, with ``recordHash`` for a v2 or v3 disclosure. None when a
+    disclosed seq is not in the history, or such a disclosure meets a history
+    entry with no record hash."""
     if not isinstance(disclosure, dict) or not isinstance(disclosure.get("entries"), list):
         return None
     by_seq = {e.get("seq"): e for e in seal_history.get("entries") or [] if isinstance(e, dict)}
     seqs = sorted({entry.get("seq") for entry in disclosure["entries"] if isinstance(entry, dict)})
-    v2 = disclosure.get("recordHashVersion") == 2
+    v2 = disclosure.get("recordHashVersion") in (2, 3)
     out = []
     for seq in seqs:
         e = by_seq.get(seq)
@@ -552,12 +762,15 @@ def _disclosure_form_of(seal_history: Dict[str, Any], disclosure: Any) -> Option
             }
         )
         out.append(entry)
-    return {
+    form: Dict[str, Any] = {
         "recordKey": seal_history.get("recordKey"),
         "chain": dict(seal_history.get("chain") or {}),
         "layout": dict(seal_history.get("layout") or {}),
-        "entries": out,
     }
+    if seal_history.get("recordHashVersion") == 3:
+        form["recordHashVersion"] = 3
+    form["entries"] = out
+    return form
 
 
 def verify_record_link_copy_v1(copy: Any) -> Dict[str, Any]:
