@@ -1,0 +1,850 @@
+{
+  "schema": "records-crypto-vectors/v1",
+  "generator": "scripts/records/generate-records-crypto-vectors.mjs",
+  "constants": {
+    "blindingFileSchema": "pacspace-blinding/v1",
+    "blindingFileMaxBytes": 1024,
+    "blindingValueBytes": 32,
+    "streamChunkBytes": 65536
+  },
+  "cases": [
+    {
+      "id": "bd-empty",
+      "kind": "blinded-digest",
+      "title": "A 0-byte source",
+      "input": {
+        "source": {
+          "hex": ""
+        },
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22"
+      },
+      "expected": {
+        "ref": {
+          "alg": "hmac-sha-256",
+          "digest": "239fa6245653c64a1b5a32507295850c6fd59fb7e967a8412bbfef29f4b55d35",
+          "byteLength": "0"
+        }
+      }
+    },
+    {
+      "id": "bd-text",
+      "kind": "blinded-digest",
+      "title": "A short text file",
+      "input": {
+        "source": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22"
+      },
+      "expected": {
+        "ref": {
+          "alg": "hmac-sha-256",
+          "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+          "byteLength": "36"
+        }
+      }
+    },
+    {
+      "id": "bd-text-other-value",
+      "kind": "blinded-digest",
+      "title": "The same bytes under another value give another digest",
+      "input": {
+        "source": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "valueHex": "d6bed4b86123839548c384f2b3be45b0fdc45a6b2a7ec19560c4e63a415b4be7"
+      },
+      "expected": {
+        "ref": {
+          "alg": "hmac-sha-256",
+          "digest": "7d672d96a919618a5bc287d2fdb1ad18dbe93a6dd0a89b19d0d82e2ed40536c9",
+          "byteLength": "36"
+        }
+      }
+    },
+    {
+      "id": "bd-large-chunked",
+      "kind": "blinded-digest",
+      "title": "A source larger than one stream chunk, defined by a rule, not embedded",
+      "input": {
+        "source": {
+          "generator": "byte[i] = (i*31+7) & 0xff",
+          "byteLength": 100000
+        },
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22"
+      },
+      "expected": {
+        "ref": {
+          "alg": "hmac-sha-256",
+          "digest": "c78d4fca70d4b729ab412934be7cfdc80b86677c4d12c0e435f6478af2d3326b",
+          "byteLength": "100000"
+        }
+      }
+    },
+    {
+      "id": "bd-binary",
+      "kind": "blinded-digest",
+      "title": "Binary bytes that are not valid UTF-8",
+      "input": {
+        "source": {
+          "hex": "255044462d312e370a25fffe0080c328e2820a2525454f460a"
+        },
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22"
+      },
+      "expected": {
+        "ref": {
+          "alg": "hmac-sha-256",
+          "digest": "fbd9ac002b3d9875d7ad003183e47e532975373e66e088bffeaaa866957b5242",
+          "byteLength": "25"
+        }
+      }
+    },
+    {
+      "id": "bf-canary",
+      "kind": "blinding-file",
+      "title": "The public canary: the only value a live refusal probe sends",
+      "input": {
+        "fields": {
+          "value": "8115a176d3babb8be1b777c3e675b7ac36fed6047bb7b190f67dd25705656576",
+          "digest": "6dded06d22b71dd3a8bf2a915fd087ed66e879d3ff1454a72b993bece985a9bc",
+          "byteLength": "28"
+        }
+      },
+      "expected": {
+        "text": "{\n  \"schema\": \"pacspace-blinding/v1\",\n  \"alg\": \"hmac-sha-256\",\n  \"value\": \"8115a176d3babb8be1b777c3e675b7ac36fed6047bb7b190f67dd25705656576\",\n  \"digest\": \"6dded06d22b71dd3a8bf2a915fd087ed66e879d3ff1454a72b993bece985a9bc\",\n  \"byteLength\": \"28\"\n}\n",
+        "byteCount": 245
+      }
+    },
+    {
+      "id": "bf-empty-file",
+      "kind": "blinding-file",
+      "title": "A blinding file for a 0-byte file",
+      "input": {
+        "fields": {
+          "value": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22",
+          "digest": "239fa6245653c64a1b5a32507295850c6fd59fb7e967a8412bbfef29f4b55d35",
+          "byteLength": "0"
+        }
+      },
+      "expected": {
+        "text": "{\n  \"schema\": \"pacspace-blinding/v1\",\n  \"alg\": \"hmac-sha-256\",\n  \"value\": \"b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22\",\n  \"digest\": \"239fa6245653c64a1b5a32507295850c6fd59fb7e967a8412bbfef29f4b55d35\",\n  \"byteLength\": \"0\"\n}\n",
+        "byteCount": 244
+      }
+    },
+    {
+      "id": "bf-largest",
+      "kind": "blinding-file",
+      "title": "The largest valid file: byteLength 9007199254740991",
+      "input": {
+        "fields": {
+          "value": "d6bed4b86123839548c384f2b3be45b0fdc45a6b2a7ec19560c4e63a415b4be7",
+          "digest": "0c7073b1e97a5ed7f2726f167f6f50b0db0685d268e15647b870b44703f3d78e",
+          "byteLength": "9007199254740991"
+        }
+      },
+      "expected": {
+        "text": "{\n  \"schema\": \"pacspace-blinding/v1\",\n  \"alg\": \"hmac-sha-256\",\n  \"value\": \"d6bed4b86123839548c384f2b3be45b0fdc45a6b2a7ec19560c4e63a415b4be7\",\n  \"digest\": \"0c7073b1e97a5ed7f2726f167f6f50b0db0685d268e15647b870b44703f3d78e\",\n  \"byteLength\": \"9007199254740991\"\n}\n",
+        "byteCount": 259
+      }
+    },
+    {
+      "id": "bf-reject-bom",
+      "kind": "blinding-file-reject",
+      "title": "A byte order mark",
+      "input": {
+        "bytesHex": "efbbbf7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "not-json"
+      }
+    },
+    {
+      "id": "bf-reject-invalid-utf8",
+      "kind": "blinding-file-reject",
+      "title": "Bytes that are not UTF-8",
+      "input": {
+        "bytesHex": "7b0a202022ff736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "not-utf8"
+      }
+    },
+    {
+      "id": "bf-reject-empty",
+      "kind": "blinding-file-reject",
+      "title": "An empty file",
+      "input": {
+        "bytesHex": ""
+      },
+      "expected": {
+        "reason": "not-json"
+      }
+    },
+    {
+      "id": "bf-reject-crlf",
+      "kind": "blinding-file-reject",
+      "title": "CRLF line ends",
+      "input": {
+        "bytesHex": "7b0d0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0d0a202022616c67223a2022686d61632d7368612d323536222c0d0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0d0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0d0a202022627974654c656e677468223a20223238220d0a7d0d0a"
+      },
+      "expected": {
+        "reason": "not-canonical"
+      }
+    },
+    {
+      "id": "bf-reject-no-final-lf",
+      "kind": "blinding-file-reject",
+      "title": "No LF after the closing brace",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d"
+      },
+      "expected": {
+        "reason": "not-canonical"
+      }
+    },
+    {
+      "id": "bf-reject-key-order",
+      "kind": "blinding-file-reject",
+      "title": "Another key order",
+      "input": {
+        "bytesHex": "7b0a202022616c67223a2022686d61632d7368612d323536222c0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "not-canonical"
+      }
+    },
+    {
+      "id": "bf-reject-indent",
+      "kind": "blinding-file-reject",
+      "title": "Four-space indent",
+      "input": {
+        "bytesHex": "7b0a2020202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a2020202022616c67223a2022686d61632d7368612d323536222c0a202020202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a2020202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a2020202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "not-canonical"
+      }
+    },
+    {
+      "id": "bf-reject-duplicate-key",
+      "kind": "blinding-file-reject",
+      "title": "A duplicate key",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202230303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "not-canonical"
+      }
+    },
+    {
+      "id": "bf-reject-extra-field",
+      "kind": "blinding-file-reject",
+      "title": "A sixth field",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238222c0a2020226e6f7465223a20226b657074220a7d0a"
+      },
+      "expected": {
+        "reason": "fields"
+      }
+    },
+    {
+      "id": "bf-reject-missing-schema",
+      "kind": "blinding-file-reject",
+      "title": "No schema",
+      "input": {
+        "bytesHex": "7b0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "fields"
+      }
+    },
+    {
+      "id": "bf-reject-missing-alg",
+      "kind": "blinding-file-reject",
+      "title": "No alg",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "fields"
+      }
+    },
+    {
+      "id": "bf-reject-missing-value",
+      "kind": "blinding-file-reject",
+      "title": "No value",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "fields"
+      }
+    },
+    {
+      "id": "bf-reject-missing-digest",
+      "kind": "blinding-file-reject",
+      "title": "No digest",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "fields"
+      }
+    },
+    {
+      "id": "bf-reject-missing-bytelength",
+      "kind": "blinding-file-reject",
+      "title": "No byteLength",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263220a7d0a"
+      },
+      "expected": {
+        "reason": "fields"
+      }
+    },
+    {
+      "id": "bf-reject-schema",
+      "kind": "blinding-file-reject",
+      "title": "Another schema",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7632222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "schema"
+      }
+    },
+    {
+      "id": "bf-reject-alg",
+      "kind": "blinding-file-reject",
+      "title": "Another alg",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a20227368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "alg"
+      }
+    },
+    {
+      "id": "bf-reject-value-uppercase",
+      "kind": "blinding-file-reject",
+      "title": "An uppercase value",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135413137364433424142423842453142373737433345363735423741433336464544363034374242374231393046363744443235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "value"
+      }
+    },
+    {
+      "id": "bf-reject-value-0x",
+      "kind": "blinding-file-reject",
+      "title": "A 0x-prefixed value",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a2022307838313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "value"
+      }
+    },
+    {
+      "id": "bf-reject-value-nonhex",
+      "kind": "blinding-file-reject",
+      "title": "A value with a non-hex character",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202267313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "value"
+      }
+    },
+    {
+      "id": "bf-reject-value-62-hex",
+      "kind": "blinding-file-reject",
+      "title": "A 31-byte value",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a20223831313561313736643362616262386265316237373763336536373562376163333666656436303437626237623139306636376464323537303536353635222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "value"
+      }
+    },
+    {
+      "id": "bf-reject-value-66-hex",
+      "kind": "blinding-file-reject",
+      "title": "A 33-byte value",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a2022383131356131373664336261626238626531623737376333653637356237616333366665643630343762623762313930663637646432353730353635363537363030222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "value"
+      }
+    },
+    {
+      "id": "bf-reject-digest-uppercase",
+      "kind": "blinding-file-reject",
+      "title": "An uppercase digest",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236444445443036443232423731444433413842463241393135464430383745443636453837394433464631343534413732423939334245434539383541394243222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "digest"
+      }
+    },
+    {
+      "id": "bf-reject-digest-62-hex",
+      "kind": "blinding-file-reject",
+      "title": "A short digest",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a20223664646564303664323262373164643361386266326139313566643038376564363665383739643366663134353461373262393933626563653938356139222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "digest"
+      }
+    },
+    {
+      "id": "bf-reject-digest-null",
+      "kind": "blinding-file-reject",
+      "title": "A null digest",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a206e756c6c2c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "digest"
+      }
+    },
+    {
+      "id": "bf-reject-bytelength-number",
+      "kind": "blinding-file-reject",
+      "title": "byteLength as a number",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a2032380a7d0a"
+      },
+      "expected": {
+        "reason": "byteLength"
+      }
+    },
+    {
+      "id": "bf-reject-bytelength-leading-zero",
+      "kind": "blinding-file-reject",
+      "title": "byteLength with a leading zero",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a2022303238220a7d0a"
+      },
+      "expected": {
+        "reason": "byteLength"
+      }
+    },
+    {
+      "id": "bf-reject-bytelength-too-large",
+      "kind": "blinding-file-reject",
+      "title": "byteLength above 9007199254740991",
+      "input": {
+        "bytesHex": "7b0a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a202239303037313939323534373430393932220a7d0a"
+      },
+      "expected": {
+        "reason": "byteLength"
+      }
+    },
+    {
+      "id": "bf-reject-top-level-array",
+      "kind": "blinding-file-reject",
+      "title": "A top-level array",
+      "input": {
+        "bytesHex": "5b0a20207b0a2020202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a2020202022616c67223a2022686d61632d7368612d323536222c0a202020202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a2020202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a2020202022627974654c656e677468223a20223238220a20207d0a5d0a"
+      },
+      "expected": {
+        "reason": "not-object"
+      }
+    },
+    {
+      "id": "bf-reject-not-json",
+      "kind": "blinding-file-reject",
+      "title": "Not JSON",
+      "input": {
+        "bytesHex": "7b2074686973206973206e6f74206a736f6e207d0a"
+      },
+      "expected": {
+        "reason": "not-json"
+      }
+    },
+    {
+      "id": "bf-reject-over-cap",
+      "kind": "blinding-file-reject",
+      "title": "More than 1024 bytes",
+      "input": {
+        "bytesHex": "7b2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020200a202022736368656d61223a202270616373706163652d626c696e64696e672f7631222c0a202022616c67223a2022686d61632d7368612d323536222c0a20202276616c7565223a202238313135613137366433626162623862653162373737633365363735623761633336666564363034376262376231393066363764643235373035363536353736222c0a202022646967657374223a202236646465643036643232623731646433613862663261393135666430383765643636653837396433666631343534613732623939336265636539383561396263222c0a202022627974654c656e677468223a20223238220a7d0a"
+      },
+      "expected": {
+        "reason": "over-cap"
+      }
+    },
+    {
+      "id": "bv-reject-0",
+      "kind": "blinding-value-reject",
+      "title": "An empty value",
+      "input": {
+        "valueHex": ""
+      },
+      "expected": {
+        "refused": true
+      }
+    },
+    {
+      "id": "bv-reject-31",
+      "kind": "blinding-value-reject",
+      "title": "31 bytes",
+      "input": {
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c"
+      },
+      "expected": {
+        "refused": true
+      }
+    },
+    {
+      "id": "bv-reject-33",
+      "kind": "blinding-value-reject",
+      "title": "33 bytes",
+      "input": {
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c2201"
+      },
+      "expected": {
+        "refused": true
+      }
+    },
+    {
+      "id": "bv-reject-64",
+      "kind": "blinding-value-reject",
+      "title": "64 bytes",
+      "input": {
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22d6bed4b86123839548c384f2b3be45b0fdc45a6b2a7ec19560c4e63a415b4be7"
+      },
+      "expected": {
+        "refused": true
+      }
+    },
+    {
+      "id": "bv-reject-65",
+      "kind": "blinding-value-reject",
+      "title": "65 bytes",
+      "input": {
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22d6bed4b86123839548c384f2b3be45b0fdc45a6b2a7ec19560c4e63a415b4be701"
+      },
+      "expected": {
+        "refused": true
+      }
+    },
+    {
+      "id": "bv-reject-32-plus-00",
+      "kind": "blinding-value-reject",
+      "title": "A value with 00 appended: HMAC would give the same MAC as the value",
+      "input": {
+        "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c2200"
+      },
+      "expected": {
+        "refused": true
+      }
+    },
+    {
+      "id": "hm-plain-match",
+      "kind": "held-file-match",
+      "title": "A sha-256 item matches the held file",
+      "input": {
+        "items": [
+          {
+            "alg": "sha-256",
+            "digest": "5c83bad1e442fec89a331dc9347991d703d1c1915f83059938773c964db90817",
+            "byteLength": "36"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": null
+      },
+      "expected": {
+        "matched": true,
+        "matchedIndex": 0,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-plain-no-alg",
+      "kind": "held-file-match",
+      "title": "An item with no alg and no byteLength matches by SHA-256",
+      "input": {
+        "items": [
+          {
+            "digest": "5c83bad1e442fec89a331dc9347991d703d1c1915f83059938773c964db90817"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": null
+      },
+      "expected": {
+        "matched": true,
+        "matchedIndex": 0,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-plain-length-differs",
+      "kind": "held-file-match",
+      "title": "The digest agrees but the length does not",
+      "input": {
+        "items": [
+          {
+            "alg": "sha-256",
+            "digest": "5c83bad1e442fec89a331dc9347991d703d1c1915f83059938773c964db90817",
+            "byteLength": "37"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": null
+      },
+      "expected": {
+        "matched": false,
+        "matchedIndex": null,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-plain-other-file",
+      "kind": "held-file-match",
+      "title": "Another file",
+      "input": {
+        "items": [
+          {
+            "alg": "sha-256",
+            "digest": "14b98d337b8e80ba962d492430c19ee354560e775a1fd14d2fcbd9caf279cb04",
+            "byteLength": "31"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": null
+      },
+      "expected": {
+        "matched": false,
+        "matchedIndex": null,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-blinded-no-file",
+      "kind": "held-file-match",
+      "title": "A blinded item and no blinding file",
+      "input": {
+        "items": [
+          {
+            "alg": "hmac-sha-256",
+            "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+            "byteLength": "36"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": null
+      },
+      "expected": {
+        "matched": false,
+        "matchedIndex": null,
+        "blinded": false,
+        "blindingNeeded": true,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-blinded-match",
+      "kind": "held-file-match",
+      "title": "A blinded item with its own blinding file",
+      "input": {
+        "items": [
+          {
+            "alg": "sha-256",
+            "digest": "14b98d337b8e80ba962d492430c19ee354560e775a1fd14d2fcbd9caf279cb04",
+            "byteLength": "31"
+          },
+          {
+            "alg": "hmac-sha-256",
+            "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+            "byteLength": "36"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": {
+          "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22",
+          "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+          "byteLength": "36"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "matchedIndex": 1,
+        "blinded": true,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-blinded-other",
+      "kind": "held-file-match",
+      "title": "A blinded item with a blinding file made for another entry of the same file",
+      "input": {
+        "items": [
+          {
+            "alg": "hmac-sha-256",
+            "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+            "byteLength": "36"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": {
+          "valueHex": "d6bed4b86123839548c384f2b3be45b0fdc45a6b2a7ec19560c4e63a415b4be7",
+          "digest": "7d672d96a919618a5bc287d2fdb1ad18dbe93a6dd0a89b19d0d82e2ed40536c9",
+          "byteLength": "36"
+        }
+      },
+      "expected": {
+        "matched": false,
+        "matchedIndex": null,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-reject-digest-mismatch",
+      "kind": "held-file-match",
+      "title": "The blinding file names a digest the held file does not reproduce",
+      "input": {
+        "items": [
+          {
+            "alg": "hmac-sha-256",
+            "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+            "byteLength": "36"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": {
+          "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22",
+          "digest": "4655179e0cf380b8bfe9f9fcab74adab4f7ad1b549e82d1211e13b4bf339df30",
+          "byteLength": "36"
+        }
+      },
+      "expected": {
+        "matched": false,
+        "matchedIndex": null,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": "blinding-digest"
+      }
+    },
+    {
+      "id": "hm-reject-length-mismatch",
+      "kind": "held-file-match",
+      "title": "The blinding file's byteLength is not the held file's",
+      "input": {
+        "items": [
+          {
+            "alg": "hmac-sha-256",
+            "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+            "byteLength": "36"
+          }
+        ],
+        "held": {
+          "hex": "706163737061636520626c696e6465642066696e6765727072696e7420766563746f720a"
+        },
+        "blinding": {
+          "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22",
+          "digest": "30aa40195b226dbaf3c6db72b5438ba5ff5df1694d1c3441b54eac4fb49dd53a",
+          "byteLength": "37"
+        }
+      },
+      "expected": {
+        "matched": false,
+        "matchedIndex": null,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": "blinding-length"
+      }
+    },
+    {
+      "id": "hm-binary-invalid-utf8",
+      "kind": "held-file-match",
+      "title": "A binary file (a PDF header then ff fe) matches from its bytes",
+      "input": {
+        "items": [
+          {
+            "alg": "sha-256",
+            "digest": "f0f01bfa79137952a2c7cd3be2870f487ad0be4ed9f453d43a30adf8f92c3525",
+            "byteLength": "25"
+          },
+          {
+            "alg": "hmac-sha-256",
+            "digest": "fbd9ac002b3d9875d7ad003183e47e532975373e66e088bffeaaa866957b5242",
+            "byteLength": "25"
+          }
+        ],
+        "held": {
+          "hex": "255044462d312e370a25fffe0080c328e2820a2525454f460a"
+        },
+        "blinding": null
+      },
+      "expected": {
+        "matched": true,
+        "matchedIndex": 0,
+        "blinded": false,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    },
+    {
+      "id": "hm-binary-blinded-match",
+      "kind": "held-file-match",
+      "title": "A binary file matches its blinded item from its bytes, with its blinding file",
+      "input": {
+        "items": [
+          {
+            "alg": "hmac-sha-256",
+            "digest": "fbd9ac002b3d9875d7ad003183e47e532975373e66e088bffeaaa866957b5242",
+            "byteLength": "25"
+          }
+        ],
+        "held": {
+          "hex": "255044462d312e370a25fffe0080c328e2820a2525454f460a"
+        },
+        "blinding": {
+          "valueHex": "b9bd74fb38073c2ce9053784a4047affdea96531153b7c6c1ec82951ee265c22",
+          "digest": "fbd9ac002b3d9875d7ad003183e47e532975373e66e088bffeaaa866957b5242",
+          "byteLength": "25"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "matchedIndex": 0,
+        "blinded": true,
+        "blindingNeeded": false,
+        "refused": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "schema": "pacspace-blinded-labels-vectors/v1",
+  "note": "Blinded labels (D-23): b1: and the base64url HMAC-SHA-256, under the workspace's id key, of name=value with the name lowercased. The id key is derived from version 1 of BF's published vector keyring (fixtures.keyring in records-encryption-v1.json), public test material, never a real one; this file holds no key. The browser, the TS SDK and the Python SDK each reproduce these values.",
+  "keyring": "records-encryption-v1.json, fixtures.keyring, version 1",
+  "cases": [
+    { "name": "model", "value": "m-0926", "blinded": "b1:tgXjQ9zwdzECVPUKNiB7cbch1MDJ8vi4F_giqJFo4LM" },
+    { "name": "site", "value": "press-line-4", "blinded": "b1:z77PhLrcgbXFdEM0yKxv-jJng_uGf_mpDrDeSCodrXk" },
+    { "name": "Region", "value": "eu-west-1", "blinded": "b1:MU9o8Xbkhf-WrQymXUeeYXH5oWSwEYXuS_0tiKcRFmM" },
+    { "name": "ticket", "value": "OPS:1234/a", "blinded": "b1:xnkgdCxw1hJG1UHt38DK5Lrd6F9AQHdrmRaYh9J0hrM" },
+    { "name": "model", "value": "m-0927", "blinded": "b1:20ooxUNWVSu7CRdzPV70pk63D1dWEzyYjJ-HUQ8bdXM" }
+  ]
+}

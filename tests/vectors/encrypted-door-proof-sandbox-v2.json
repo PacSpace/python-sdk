@@ -1,0 +1,327 @@
+{
+  "schema": "record-history-bundle/v3",
+  "recordKey": "0xa484732aa39e23ceead2f68dc676d55d9732e566006efc1ab0e64e17521d3b97",
+  "chain": {
+    "chainId": 296,
+    "contractAddress": "0x2f4f20bc6c1cc202384646e3d0cf8b417c8f58df"
+  },
+  "layout": {
+    "schema": "layout-document/v1",
+    "layoutId": 8,
+    "layoutVersion": 2,
+    "name": "machine-action-record/v2",
+    "recordTypeId": "machine-action-record",
+    "encodingVersion": 1,
+    "stateBits": 96,
+    "sealBits": 160,
+    "public": false,
+    "recordAttempts": true,
+    "fields": [
+      {
+        "name": "layoutId",
+        "type": "counter",
+        "bits": 16,
+        "fixed": 8
+      },
+      {
+        "name": "layoutVersion",
+        "type": "counter",
+        "bits": 8,
+        "fixed": 2
+      },
+      {
+        "name": "lifecycle",
+        "type": "enum",
+        "bits": 8,
+        "values": {
+          "recorded": 1,
+          "amended": 2,
+          "closed": 3
+        }
+      },
+      {
+        "name": "flags",
+        "type": "flags",
+        "bits": 8,
+        "bitNames": {
+          "transition_not_applied": 0,
+          "delivery_failed": 1
+        }
+      },
+      {
+        "name": "seq",
+        "type": "counter",
+        "bits": 24
+      },
+      {
+        "name": "reserved",
+        "type": "reserved",
+        "bits": 32
+      }
+    ],
+    "lifecycle": {
+      "field": "lifecycle",
+      "genesis": [
+        "recorded"
+      ],
+      "terminal": [
+        "closed"
+      ],
+      "transitions": {
+        "recorded": [
+          "recorded",
+          "amended",
+          "closed"
+        ],
+        "amended": [
+          "recorded",
+          "amended",
+          "closed"
+        ],
+        "closed": []
+      }
+    },
+    "sealedRecordSchema": "record-content/machine-action-record/v2"
+  },
+  "currentWord": "0x000802030100000300000000233fecc9f99d65ab616db044d4d8e9caaa0bd306",
+  "receipts": [
+    {
+      "schema": "semantic-receipt/v5",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xa484732aa39e23ceead2f68dc676d55d9732e566006efc1ab0e64e17521d3b97",
+      "seq": 0,
+      "previousWord": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "newWord": "0x0008020100000000000000009f7fbf10fd979c6ef95b678242f93db56923f5fb",
+      "layoutId": 8,
+      "layoutVersion": 2,
+      "layoutDigest": "0x8ebdd9c1709bc6bd30033992cbcebd2c095dcb1d237ef3ea0833b726e665e1f6",
+      "recordHash": "0x982b6264a5bdb6909be1ead3f3cb838ccd3d38b9c44aa9e03c937e48208ad0c5",
+      "recordHashVersion": 3,
+      "envelopes": [
+        {
+          "v": 1,
+          "ct": "XDL95Sw19rB2T54iUmR0r_ugSJtLDwC6mVaVqG9hRAkFwSVjXkfCFq8sLuUFsh1mcaMz46B-q2BNutTjvRkMjLyCDXfSg8i3zWB9OAxbjFr-j4GeE6RcszvCj99BXn4T2PQZPo_kf0vH2Z4qwGegHZPu0EEGdB_mZXI1vV2b0EJvNvttBz96JACjBwrQB1u_JsO0qtFOcW9NfMHdD2k9gZgIuVe9OwalAJXtdCrhDsvrIVzaSXFONUmBAXeUpWzjQ2D7P0JBIKL8XZXxY6AHSNXhUOosBV5oZryDyMvBv83KrnysIAe1isiczk1m29Eu7jIuLA5ihBbU6fOG5nzbxpSCQwbsc928hYLn74n2-hZeh8yr6pISHrRTf32EApkSDkghUU0nfZPJpaP08yRqk2upOGM-vligYG2nIrcdQ7WpWiMWZVnNZ69LmaOstw8KYbJMpQ1E7LGQPt1hr7mmBRhOuzKyGmxLBlcoF2hSd7QbL36wlAF3W4graSJK28nF-56SegFKRM4YG2HmIqB6JziaGY0udrHU1WdDA9sKwkPrKa0nkj0c9qX2_mQ6tzBnJJESkEWqXYC12BR20JYm6qd93z51Tr_Vl4BA-YNZJgy4zc6wx6YLZKTXv8uSOS3U26R196ubmndQtzJ3jXNFuawJFhAKYbCG7aMPj9SL0lriVJiBzc3dDt_acFcy5Aow",
+          "iv": "xt0YV7fz8Dq19nFg",
+          "alg": "A256GCM",
+          "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      ],
+      "recordOpening": "0x3b2876c0c4b521f7c1dc08c348ba1ab5d62019475482ac9a9d0a0f3f6ac4cadc",
+      "itemIndex": 0,
+      "itemOpening": "0xc20d245ce46137c869e6ce72370b8ba58d4aae65d2278b247ced42e03fc301c1",
+      "merkleProof": [],
+      "proofRoot": "0x9bfc75d1495f0dd1b8303860b6f10b39b3e0c968bb2abc082dcc08efd46dac5d",
+      "batchId": 88,
+      "previousHead": "0x2b1fe869e9be3fa72c1e6bf36c99b4f36adac1c0cfa3852e776bacef90142418",
+      "ledgerHead": "0x8d52287903ffc432c90ae13b5f356cc7a082a96b11b139d8e30656f169a42b7f",
+      "receiptId": "cmwhzbpuy001ds601oh1vj2j5",
+      "status": "committed"
+    },
+    {
+      "schema": "semantic-receipt/v5",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xa484732aa39e23ceead2f68dc676d55d9732e566006efc1ab0e64e17521d3b97",
+      "seq": 1,
+      "previousWord": "0x0008020100000000000000009f7fbf10fd979c6ef95b678242f93db56923f5fb",
+      "newWord": "0x000802020000000100000000a6f6010b4f3d789235ac6fecda9d1f44e0dd0c17",
+      "layoutId": 8,
+      "layoutVersion": 2,
+      "layoutDigest": "0x8ebdd9c1709bc6bd30033992cbcebd2c095dcb1d237ef3ea0833b726e665e1f6",
+      "recordHash": "0x5ed8718fa8a192ab5646acdcaf49368ec13788a241f9278d5fe0bc5a6295fe27",
+      "recordHashVersion": 3,
+      "envelopes": [
+        {
+          "v": 1,
+          "ct": "62LM5oxQt-EWoHikx4C-U2o3Nz0m2in9NI0YP9K9T3QfUoOkaj3REX_BbGMJvOWDtNaVsR0L_EZ3yjEA_YkOtjAJ-0Nd74XvlPQfz4JZKGdaAZPcButl4TgfSco7xUtmMC2I16wSk3nQrMFnYhZWNdsz00IROWs7wJEW68z8DiLhMZKUkGfoku-2yvn43kt-ZnsoHbKjtGBiUPxNSsXsU0Bif4pKqOKCzsDx_-uTcd2yobEAW088V9ITfubwurvuzbmfQOc62kDffIEGrK1KJmjVV-LXhBzOtpNZODbU3Ld5iE0FmOmBuwB36seW8IWL16Qn5gd4Eg2TU9jQ294dRWlHbXcEc1L3Vi2UHIeh4qJMKwsEt_CEa__aZw91YpJAKN_qBZExejC5hrWIZpknpiAevpHjj_R7kHs6I5akziOFo8dPj2TG3dJ7P32J24oUD8pw3neevUZlPEqcZ_VetXWwodfBEQyqPFP4BnEP21l3d7A84lW4Jtd7OYcqkQzi0GZB2oPDUMiDqMuGGdy0Fk_s8mro9WegZdNciaeZgsu6oNcGp0VzAw4fF0IvoaZDyq_h-NXwnDvIWpo-t5EYaU12hyGh8LYIfe8C6uBIEvM0MtQ3eBUZFBnlY79W-JtndJfNlPyh4viwA41HdVRG_pc4S3ZYhmn2oOKYXwJLS4aP-IU64lSi-N9Wb7dlNasl",
+          "iv": "IGEeoQ8xZQbGpfHG",
+          "alg": "A256GCM",
+          "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      ],
+      "amends": {
+        "seq": 0,
+        "recordKey": "0xa484732aa39e23ceead2f68dc676d55d9732e566006efc1ab0e64e17521d3b97"
+      },
+      "recordOpening": "0x51994b05fc4873339c39412b46f6a8573d5ca9255c1a84bf0cedab8aeaaf0b28",
+      "itemIndex": 0,
+      "itemOpening": "0xeda00d21d858c8be75ff780fe0b5139c42c8793aaaa8e60019e8d2baba677297",
+      "merkleProof": [],
+      "proofRoot": "0x66d62dac433188aaea8e58df8148d9b478276877f0e3e5f09f87507a6b9b1df4",
+      "batchId": 89,
+      "previousHead": "0x8d52287903ffc432c90ae13b5f356cc7a082a96b11b139d8e30656f169a42b7f",
+      "ledgerHead": "0x701eaf5524f40835d74920ec276bfb66a4008f5972a56524b06222b097c38be0",
+      "receiptId": "cmwhzbyyd001ls601935ykcj1",
+      "status": "committed"
+    },
+    {
+      "schema": "semantic-receipt/v5",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xa484732aa39e23ceead2f68dc676d55d9732e566006efc1ab0e64e17521d3b97",
+      "seq": 2,
+      "previousWord": "0x000802020000000100000000a6f6010b4f3d789235ac6fecda9d1f44e0dd0c17",
+      "newWord": "0x0008020300000002000000003c2c381346567203673663c4023e07da9c49cd0c",
+      "layoutId": 8,
+      "layoutVersion": 2,
+      "layoutDigest": "0x8ebdd9c1709bc6bd30033992cbcebd2c095dcb1d237ef3ea0833b726e665e1f6",
+      "recordHash": "0xbc802ba1ec143cadd719af8bc2f2c390725a78745bf1c6f52303186bc264c106",
+      "recordHashVersion": 3,
+      "envelopes": [
+        {
+          "v": 1,
+          "ct": "ChT2jbkjo2wFLMUBluZ32bEkAXdFLoY0JYR0GlOdfCunoc8ueZGp5m5aNNdVVcOEyX5i17n2eVwIhe4W_NsgagADuJ2KG7XJohtmcR_XpTv-q5rVoTmIAu0AlSfN4pZUAorDsXcHF7D3aseU_Xq_X6HaCs9pgDHXSD0B5VoY3BUv3aXbKgLrRwsFtJKBrV8u_UB5xAhN53Q0ICEZPWIDnruHXfqEg_ZoJuNA-hTDZJfNn0CRLXO3taI7RQbnLSBO8x_1p_maKNzxR0UYpu0xVzPat2QwiuOdVxX3V8FBNZ_gaJhdrwrtElALFeWBficlMdDbA34BmdKWDGLH3i8xNd_sGQKrAD66Xws6wJYjpg6rOQySHysTCsxDTXCi9oh5xQ3wkFHYpuDQcFI_PywYb9szuCtcHe9iCX9Es8DpPLkBJbjwSkaQpJ_hIoPuOihTrvKkWmf9MYPdixzgACfkEqLNjSg9la6hJ6VIkV9_ImLgmJxlWiUlOng5MxrEVpiv9JPjJHPIp3nbfrCWlPABGgBJlgptkSLq0qxHsSR3Whx0RxnQDZ7f3KtZxWU57UNHNhwYphXd4mQzhKmja3EIKniyHmNPpima2ElfIc5vmNmcjXZjPrwds3fuW508pLF5iNCznsz4ueJ8roo4H-S8HbSW1Oq3siqcem-MBbYpXpI7w1Q9V4t-615WarB6RsSK",
+          "iv": "tVxHh8FL1BlZdzm8",
+          "alg": "A256GCM",
+          "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+        }
+      ],
+      "recordOpening": "0x1054e6cb444f94d90afcfcd34ca508afaa0bc6979ef8f7a79236a5fdbaf3e002",
+      "itemIndex": 0,
+      "itemOpening": "0x39fed3640badd4371c15b6cc46d8b00a62290e149fab873d107c6d444e79ee2e",
+      "merkleProof": [],
+      "proofRoot": "0x4ef91a4b694b8d276c8ff88d05a838c20675128373abf488dc22465937b62841",
+      "batchId": 90,
+      "previousHead": "0x701eaf5524f40835d74920ec276bfb66a4008f5972a56524b06222b097c38be0",
+      "ledgerHead": "0x91dd1e960b11baf34320bc3caf225f2642bd5665ed4f6b52749118ddfb1009ef",
+      "receiptId": "cmwhzc7h1001rs6010q5hni5d",
+      "status": "committed"
+    },
+    {
+      "schema": "semantic-receipt/v6",
+      "itemKind": "slot-v1",
+      "encodingVersion": 1,
+      "derivationVersion": 2,
+      "recordKey": "0xa484732aa39e23ceead2f68dc676d55d9732e566006efc1ab0e64e17521d3b97",
+      "seq": 3,
+      "previousWord": "0x0008020300000002000000003c2c381346567203673663c4023e07da9c49cd0c",
+      "newWord": "0x000802030100000300000000233fecc9f99d65ab616db044d4d8e9caaa0bd306",
+      "layoutId": 8,
+      "layoutVersion": 2,
+      "layoutDigest": "0x8ebdd9c1709bc6bd30033992cbcebd2c095dcb1d237ef3ea0833b726e665e1f6",
+      "recordHashVersion": 3,
+      "items": [
+        [
+          "0x59d94e24f9e1b685361bbf3fca23b511b1b4a4fac25fbc8417eded2ca6062da3",
+          65535,
+          "0x66919643317123a6d4a6f71000b6ceff0139e18eb85bbff4a7b11ea6003c96b9"
+        ],
+        [
+          "0x6122eb8709f7f5b6ada7b8be7b4621ebf53db916dbbcb218dd68cf72675667e6",
+          65535,
+          "0xeacdce50c4f92141125efcd66413864b62b4551c35cf751e80fbd79e4ee0baaf"
+        ],
+        [
+          "0xa5c1525bb3ea9171bfcbda6c1b162062a7326d227b000d9ea72822818002d2ca",
+          65535,
+          "0x9aa1e1a3030dcb566c2d480386409aa4a0eba2508dea7adaa6de0081d1d79415"
+        ]
+      ],
+      "revealed": [
+        {
+          "pointer": "/attemptedTarget",
+          "value": "recorded",
+          "salt": "0x527bb6d56f56c3829d4952ad29e15c363e515ca76f834dc984a86e1e10a6e727"
+        },
+        {
+          "pointer": "/refusedRecordHash",
+          "value": "0x2b59ac0cf60b1c4ed0f84149ce7c19813fc1024f3efbcc32a3a861f33def1543",
+          "salt": "0xb682d6fea233ab9f4b2039ccc8b4efab37cbd387729a3dce0141c762d3e58d0f"
+        },
+        {
+          "pointer": "/ruleId",
+          "value": "machine-action-record/v2#transitions.closed",
+          "salt": "0x48170f86d8332f772bc9e716d846b0fdad9cc7e82c866ad9d9765142beed2508"
+        }
+      ],
+      "recordOpening": "0xce0884de405df9267dae67039d2ba6ce1f40c8e23db4c62744f2f11257936a4d",
+      "itemIndex": 0,
+      "itemOpening": "0x8896354d87a4e412e306bdedacb0a577143f9f9d50f70a67e6169ab08a49caf1",
+      "merkleProof": [],
+      "proofRoot": "0x02fe93963ca5a76e51a7bed2f381afd91978d1bca49b64d8de3638624710c411",
+      "batchId": 91,
+      "previousHead": "0x91dd1e960b11baf34320bc3caf225f2642bd5665ed4f6b52749118ddfb1009ef",
+      "ledgerHead": "0x2bf9974b0a117ae9119583479c7b3a3a0e33e9fd559aa61a962fce441122320d",
+      "receiptId": "cmwhzcg69001xs601nb8muc4x",
+      "status": "committed"
+    }
+  ],
+  "ledger": {
+    "genesisHead": "0x2b1fe869e9be3fa72c1e6bf36c99b4f36adac1c0cfa3852e776bacef90142418",
+    "head": "0x2bf9974b0a117ae9119583479c7b3a3a0e33e9fd559aa61a962fce441122320d",
+    "batches": [
+      {
+        "batchId": 88,
+        "merkleRoot": "0x9bfc75d1495f0dd1b8303860b6f10b39b3e0c968bb2abc082dcc08efd46dac5d"
+      },
+      {
+        "batchId": 89,
+        "merkleRoot": "0x66d62dac433188aaea8e58df8148d9b478276877f0e3e5f09f87507a6b9b1df4"
+      },
+      {
+        "batchId": 90,
+        "merkleRoot": "0x4ef91a4b694b8d276c8ff88d05a838c20675128373abf488dc22465937b62841"
+      },
+      {
+        "batchId": 91,
+        "merkleRoot": "0x02fe93963ca5a76e51a7bed2f381afd91978d1bca49b64d8de3638624710c411"
+      }
+    ]
+  },
+  "batchRoots": {
+    "88": "0x9bfc75d1495f0dd1b8303860b6f10b39b3e0c968bb2abc082dcc08efd46dac5d",
+    "89": "0x66d62dac433188aaea8e58df8148d9b478276877f0e3e5f09f87507a6b9b1df4",
+    "90": "0x4ef91a4b694b8d276c8ff88d05a838c20675128373abf488dc22465937b62841",
+    "91": "0x02fe93963ca5a76e51a7bed2f381afd91978d1bca49b64d8de3638624710c411"
+  },
+  "ledgerStatement": {
+    "statementDate": "2026-11-15",
+    "asOfBatchId": 85,
+    "ledgerHead": "0xd1f1d886e1e5f21464497842dabeaa75177ff97c22c02d0e0fe149ee913c81a5",
+    "blockNumber": 43091638,
+    "blockTime": "2026-11-14T21:10:54.000Z"
+  },
+  "exportedAt": "2026-11-15T15:19:09.096Z",
+  "recordType": "machine-action-record",
+  "entityId": "vVdlmgQhnaWQ5WCsCytaUg",
+  "refused": [
+    {
+      "seq": 3,
+      "recordHash": "0x2b59ac0cf60b1c4ed0f84149ce7c19813fc1024f3efbcc32a3a861f33def1543",
+      "envelope": {
+        "v": 1,
+        "ct": "ff7nycNm1ttgAyuelIE51GqvX_GOiIolKzATaRRGz8JGcPWeuQ7RVXxdIjBuW-iJ3su4gUpDxvdOMWUqUmQOnqUdMdD947TFzlrXT1t11whpcN7s6814C01JVDLH25mJ8jKZpxa92KfosoasYwu3be59SO0YnxW-76iQGoeVJRsSAFT8wyrSg_xfoJ4_kIGlvlSFGX4CfX3h07KylsDJN5lS0IzteTfwuVbLypOVlmxetCJvUl1ZmAkFY7xtypvZtswogKijLSz6fJd5NLjrjhRX91fl0c67rJBtmXYswFJW4NjCYIxMvxtJZb_AtLz058tJzUhEVBa2FWRFTPIKtCSG0Iug70mxtMO-lVBjautburBL1Nuq4xeFKnQwD1opqczRCwq9JKmqtUVcIUQViazJbMw6yTBBuLg83cXar7XJNxUPZQ3R_gThWUBPu2mao0Vg-OEqc09YRqpKyaAro8cVWWQabGrOGDrJ5NBnS_VY4yrxBUfka42LvpAcfDN7JNj5LyGX4sBmYk2Vg5FUC_tU7_-EmErRzKeUBV4nwe2hBs8O3lYLTN3v6CGyt3rx2qGyfsUZ06tB04vIdEi6mPQvdDcQHfqMwvj__ZaIQ-OFGkaOUoGzT46_1Z794W3HS__zCe-pW-kpe5aDVp3BANBxL6pxJVDMBTe3gikOetftU-z1h8kugCPjwJWbLmQ0",
+        "iv": "7mk-VaW1YrC3eqeU",
+        "alg": "A256GCM",
+        "kid": "54cba2d1eab1e271da9d279b43f92060aa573dfe9ddeb3ccc3656eb02bbbe8a8"
+      }
+    }
+  ],
+  "bundleDigest": "0x41bd6f66ece3d5200ec46901e6bbb4fc3ba19dfb95ffc38a9c2dacced037af91",
+  "entries": [
+    {
+      "seq": 0,
+      "status": "committed",
+      "receiptId": "cmwhzbpuy001ds601oh1vj2j5"
+    },
+    {
+      "seq": 1,
+      "status": "committed",
+      "receiptId": "cmwhzbyyd001ls601935ykcj1"
+    },
+    {
+      "seq": 2,
+      "status": "committed",
+      "receiptId": "cmwhzc7h1001rs6010q5hni5d"
+    },
+    {
+      "seq": 3,
+      "status": "committed",
+      "receiptId": "cmwhzcg69001xs601nb8muc4x"
+    }
+  ]
+}

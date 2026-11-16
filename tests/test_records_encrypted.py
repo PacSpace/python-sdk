@@ -1,0 +1,1366 @@
+"""L2d3: the Python SDK's encrypted records (ADR 0015; design-v1, "L2d2 and
+L2d3, the SDKs"), the mirror of the TypeScript spec, end to end against an
+in-memory fake of the routes. The read path runs on the door proof's sandbox
+history, sealed under the published vector secret (DK-01 version 1, DK-02
+version 2; L2-13). Python reads up to each entry's record hash; the seals are
+the TypeScript SDK's and the checker's."""
+
+from __future__ import annotations
+
+import base64
+import copy
+import json
+import os
+import stat
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from records_encrypted_support import (
+    VECTOR_KEYRING,
+    VECTOR_KEYRING_V1,
+    FakeEncryptedApi,
+    admission_cases,
+    bundle_digest,
+    disclosure_link,
+    door_proof_bundle,
+    format2_case,
+    vector_histories,
+)
+
+from pacspace_sdk import (
+    RECORDS_ENCRYPTION_WORDS,
+    PacSpace,
+    PacSpaceError,
+    file_pin_store,
+    generate_workspace_secret,
+    memory_pin_store,
+    next_workspace_secret,
+)
+from pacspace_sdk import records_asymmetric as A
+from pacspace_sdk import records_encryption as R
+from pacspace_sdk.encrypted_records import AEAD
+from pacspace_sdk.record_disclosure import commit_record_content_v2, commit_record_content_v3
+from pacspace_sdk.records_admission import admit_record_entry
+
+RECORD_TYPE = "machine-action-record"
+KEY_A, KEY_B, KEY_C = "pk_test_A.SECRET", "pk_test_B.SECRET", "pk_test_C.SECRET"
+
+
+def setup() -> FakeEncryptedApi:
+    api = FakeEncryptedApi()
+    api.add_workspace(KEY_A, "cfixtureworkspacea0000001")
+    api.add_workspace(KEY_B, "cfixtureworkspaceb0000001")
+    api.add_workspace(KEY_C, "cfixtureworkspacec0000001")
+    return api
+
+
+def client(api: FakeEncryptedApi, api_key: str, secret: Optional[str] = None, pin_store: Any = None) -> PacSpace:
+    records = {"secret": secret, "pin_store": pin_store or memory_pin_store()} if secret is not None else None
+    return PacSpace(api_key, base_url="https://api.test", max_retries=0, transport=api, records=records)
+
+
+def ring_of(text: str) -> R.RecordsKeyring:
+    return R.RecordsKeyring.from_provider(R.local_records_key_provider(text))
+
+
+def content(title: str) -> Dict[str, Any]:
+    return {
+        "title": title,
+        "occurred_at": "2026-10-05T12:00:00Z",
+        "actor_id": "agent-7",
+        "payloads": [{"alg": "sha-256", "digest": "a" * 64, "byteLength": "10"}],
+    }
+
+
+def with_fixture(secret: str = VECTOR_KEYRING_V1):
+    api = setup()
+    bundle = door_proof_bundle()
+    api.serve_history("cfixtureworkspacea0000001", bundle)
+    a = client(api, KEY_A, secret)
+    a.records.identity.register()
+    return api, bundle, a
+
+
+def posts(api: FakeEncryptedApi) -> List[Dict[str, Any]]:
+    return [r for r in api.requests if r["url"].endswith("/transitions")]
+
+
+class WorkspaceSecretTest(unittest.TestCase):
+    def test_generate_draws_version_1_and_next_adds_exactly_the_next(self) -> None:
+        first = generate_workspace_secret()
+        parsed = R.parse_records_keyring_file(first)
+        self.assertEqual([v for v, _ in parsed["secrets"]], [1])
+        following = R.parse_records_keyring_file(next_workspace_secret(first))
+        self.assertEqual([v for v, _ in following["secrets"]], [1, 2])
+        self.assertEqual(following["secrets"][0][1], parsed["secrets"][0][1])
+        with self.assertRaises(PacSpaceError) as caught:
+            next_workspace_secret("not a keyring")
+        self.assertEqual(str(caught.exception), RECORDS_ENCRYPTION_WORDS["RECORDS_SECRET_INVALID"])
+
+    def test_a_malformed_secret_is_refused_with_w24_before_any_request(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, '{"schema":"pacspace-workspace-secret/v1","secrets":[]}')
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.emit(record="r-1", **content("x"))
+        self.assertEqual(caught.exception.code, "RECORDS_SECRET_INVALID")
+        self.assertEqual(caught.exception.message, RECORDS_ENCRYPTION_WORDS["RECORDS_SECRET_INVALID"])
+        self.assertEqual(api.requests, [])
+
+    def test_wire_ids_need_a_secret_and_without_one_emit_writes_plaintext(self) -> None:
+        api = setup()
+        a = client(api, KEY_A)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.wire_id("r-1")
+        self.assertEqual(caught.exception.code, "RECORDS_SECRET_REQUIRED")
+        a.records.emit(record="r-1", **content("Plain"))
+        sent = json.loads(api.requests[0]["body"])
+        self.assertEqual(api.requests[0]["url"], f"https://api.test/api/v1/records/{RECORD_TYPE}/r-1/transitions")
+        self.assertEqual(sent["content"]["title"], "Plain")
+        self.assertNotIn("envelope", sent)
+
+
+class EncryptedEmitTest(unittest.TestCase):
+    def test_encrypts_by_default_with_wire_ids_the_v3_hash_the_tag_and_an_envelope(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.identity.register()
+        api.requests.clear()
+        out = a.records.emit(record="invoice-77", idempotency_key="ref-1", **content("Encrypted entry"))
+
+        ring = ring_of(VECTOR_KEYRING)
+        wire = R.wire_record_id(ring.id_key, RECORD_TYPE, "invoice-77")
+        wire_ref = R.wire_reference_id(ring.id_key, "ref-1")
+        self.assertEqual(
+            {k: out[k] for k in ("recordId", "wireRecordId", "wireReferenceId", "referenceId", "encrypted", "entityId")},
+            {"recordId": "invoice-77", "wireRecordId": wire, "wireReferenceId": wire_ref, "referenceId": "ref-1", "encrypted": True, "entityId": wire},
+        )
+        self.assertEqual(len(api.requests), 1)
+        self.assertEqual(api.requests[0]["url"], f"https://api.test/api/v1/records/{RECORD_TYPE}/{wire}/transitions")
+        body = json.loads(api.requests[0]["body"])
+        self.assertEqual(sorted(body), ["contentTag", "envelope", "lifecycle", "recordHash", "recordHashVersion", "referenceId"])
+        self.assertEqual(body["recordHashVersion"], 3)
+        self.assertEqual(body["referenceId"], wire_ref)
+        self.assertEqual(body["envelope"]["kid"], ring.by_version(2).id)
+        opened = R.open_record_entry_envelope(AEAD, body["envelope"], RECORD_TYPE, wire, record_key=R.record_key_of(ring.by_version(2), wire))
+        self.assertTrue(opened["ok"])
+        self.assertEqual(opened["content"]["title"], "Encrypted entry")
+        self.assertEqual(commit_record_content_v3(opened["content"], opened["saltKey"])["recordHash"], body["recordHash"])
+
+    def test_with_no_reference_id_the_content_tag_makes_it_so_a_repeat_is_a_replay(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.identity.register()
+        api.requests.clear()
+        a.records.emit(record="r-2", **content("Same"))
+        a.records.emit(record="r-2", **content("Same"))
+        first, second = (json.loads(r["body"]) for r in api.requests)
+        self.assertRegex(first["referenceId"], r"^[A-Za-z0-9_-]{22}$")
+        self.assertEqual(second["referenceId"], first["referenceId"])
+        self.assertNotEqual(second["recordHash"], first["recordHash"])
+
+    def test_writes_under_the_version_the_api_names_and_retries_once(self) -> None:
+        api = setup()
+        v1 = client(api, KEY_A, VECTOR_KEYRING_V1)
+        v1.records.identity.register()
+        v1.records.emit(record="r-3", **content("Under version 1"))
+        both = client(api, KEY_A, VECTOR_KEYRING)
+        both.records.identity.register()
+        api.requests.clear()
+        both.records.emit(record="r-3", **content("Still version 1"))
+        ring = ring_of(VECTOR_KEYRING)
+        self.assertEqual([json.loads(r["body"])["envelope"]["kid"] for r in posts(api)], [ring.by_version(2).id, ring.by_version(1).id])
+        api.requests.clear()
+        both.records.emit(record="r-3", **content("Cached version"))
+        self.assertEqual(len(posts(api)), 1)
+
+    def test_a_version_this_secret_does_not_hold_is_named(self) -> None:
+        api = setup()
+        owner = client(api, KEY_A, VECTOR_KEYRING)
+        owner.records.identity.register()
+        owner.records.emit(record="r-4", **content("Under version 2"))
+        only_v1 = client(api, KEY_A, VECTOR_KEYRING_V1)
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            only_v1.records.emit(record="r-4", **content("x"))
+        self.assertEqual(caught.exception.code, "RECORDS_VERSION_NOT_HELD")
+        self.assertEqual(caught.exception.message, "This record is under version 2, which this workspace secret doesn't hold.")
+        self.assertEqual(len(posts(api)), 1)
+
+    def test_runs_intake_admission_here_before_anything_is_sent(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.emit(record="r-5", **{**content("Unknown state")}, lifecycle="no-such-state")
+        self.assertEqual((caught.exception.status_code, caught.exception.code), (400, "RECORD_STATE_UNKNOWN"))
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.emit(record="r-5", **{**content("No payloads"), "payloads": []})
+        self.assertEqual(caught.exception.code, "RECORD_PAYLOADS_REQUIRED")
+        self.assertEqual(api.requests, [])
+
+    def test_encrypt_false_writes_plaintext_for_a_record_started_in_plaintext(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.emit(record="old-1", encrypt=False, **content("Plain again"))
+        self.assertIn("/old-1/transitions", api.requests[0]["url"])
+        self.assertEqual(json.loads(api.requests[0]["body"])["content"]["title"], "Plain again")
+
+    def test_an_entry_too_large_is_refused_with_intakes_sentence(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.emit(record="r-6", note="x" * 48000, **content("Large"))
+        self.assertEqual((caught.exception.status_code, caught.exception.code), (413, "RECORD_ENTRY_TOO_LARGE"))
+        self.assertEqual(api.requests, [])
+
+
+class RecordHashVersionTest(unittest.TestCase):
+    """Card 10, F1: the client starts at 3 and switches once on refusal."""
+
+    def opened(self, body: Dict[str, Any], record: str) -> Dict[str, Any]:
+        ring = ring_of(VECTOR_KEYRING)
+        wire = R.wire_record_id(ring.id_key, RECORD_TYPE, record)
+        opened = R.open_record_entry_envelope(AEAD, body["envelope"], RECORD_TYPE, wire, record_key=R.record_key_of(ring.by_version(2), wire))
+        self.assertTrue(opened["ok"])
+        return opened
+
+    def declared(self, api: FakeEncryptedApi) -> List[Optional[int]]:
+        return [json.loads(r["body"]).get("recordHashVersion") for r in posts(api)]
+
+    def test_while_intake_takes_only_3_a_new_clients_first_write_declares_3_and_is_the_only_post(self) -> None:
+        api = setup()
+        api.hash_v3 = True
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.identity.register()
+        api.requests.clear()
+        a.records.emit(record="h-1", **content("v3"))
+        self.assertEqual(len(posts(api)), 1)
+        body = json.loads(posts(api)[0]["body"])
+        self.assertEqual(body["recordHashVersion"], 3)
+        opened = self.opened(body, "h-1")
+        self.assertEqual(body["recordHash"], commit_record_content_v3(opened["content"], opened["saltKey"])["recordHash"])
+        api.requests.clear()
+        a.records.emit(record="h-2", **content("kept"))
+        self.assertEqual(self.declared(api), [3])
+
+    def test_while_intake_takes_only_2_moves_to_2_once_with_the_same_salts_and_keeps_it(self) -> None:
+        api = setup()
+        api.hash_v3 = False
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.identity.register()
+        api.requests.clear()
+        a.records.emit(record="h-3", **content("v2"))
+        first, second = (json.loads(r["body"]) for r in posts(api))
+        self.assertEqual(first["recordHashVersion"], 3)
+        self.assertNotIn("recordHashVersion", second)
+        self.assertEqual(second["contentTag"], first["contentTag"])
+        self.assertEqual(second["referenceId"], first["referenceId"])
+        opened = self.opened(second, "h-3")
+        self.assertEqual(second["recordHash"], commit_record_content_v2(opened["content"], opened["saltKey"])["recordHash"])
+        api.requests.clear()
+        a.records.emit(record="h-4", **content("kept"))
+        self.assertEqual(self.declared(api), [None])
+
+    def test_a_record_in_the_earlier_format_is_refused_once_intake_takes_only_3_after_at_most_one_retry(self) -> None:
+        api = setup()
+        api.hash_v3 = False
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.identity.register()
+        a.records.emit(record="h-7", **content("Earlier format"))
+        api.hash_v3 = True
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.emit(record="h-7", **content("Next entry"))
+        self.assertEqual(caught.exception.code, "RECORD_FORMAT_RETIRED")
+        self.assertEqual(self.declared(api), [None, 3])
+        fresh = client(api, KEY_A, VECTOR_KEYRING)
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            fresh.records.emit(record="h-7", **content("From a new client"))
+        self.assertEqual(caught.exception.code, "RECORD_FORMAT_RETIRED")
+        self.assertEqual(self.declared(api), [3])
+
+    def test_moves_back_to_2_once_when_intake_does_not_take_3(self) -> None:
+        api = setup()
+        api.hash_v3 = True
+        a = client(api, KEY_A, VECTOR_KEYRING)
+        a.records.identity.register()
+        a.records.emit(record="h-4", **content("v3"))
+        api.hash_v3 = False
+        api.requests.clear()
+        a.records.emit(record="h-5", **content("back"))
+        self.assertEqual(self.declared(api), [3, None])
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.emit(record="h-4", **content("x"))
+        self.assertEqual(caught.exception.code, "RECORD_HASH_VERSION_NOT_ENABLED")
+        self.assertEqual(self.declared(api), [None])
+
+
+class ContentTagVersionTest(unittest.TestCase):
+    """Card 10, F2: the content tag is keyed by the record's version."""
+
+    def test_keys_the_tag_by_the_version_so_the_default_reference_deduplicates_within_one_version_only(self) -> None:
+        api = setup()
+        v1 = client(api, KEY_A, VECTOR_KEYRING_V1)
+        v1.records.identity.register()
+        both = client(api, KEY_A, VECTOR_KEYRING)
+        both.records.identity.register()
+        api.requests.clear()
+        v1.records.emit(record="t-5", **content("Same"))
+        both.records.emit(record="t-6", **content("Same"))
+        under_v1, under_v2 = (json.loads(r["body"]) for r in posts(api))
+        ring = ring_of(VECTOR_KEYRING)
+
+        def expected(version: int, record: str, body: Dict[str, Any], sent_under: int) -> List[str]:
+            wire = R.wire_record_id(ring.id_key, RECORD_TYPE, record)
+            opened = R.open_record_entry_envelope(AEAD, body["envelope"], RECORD_TYPE, wire, record_key=R.record_key_of(ring.by_version(sent_under), wire))
+            self.assertTrue(opened["ok"])
+            tag = R.content_tag_v2(ring.content_tag_key(version), RECORD_TYPE, wire, opened["content"], body["lifecycle"])
+            return [tag, R.wire_reference_id(ring.id_key, tag)]
+
+        self.assertEqual([under_v1["contentTag"], under_v1["referenceId"]], expected(1, "t-5", under_v1, 1))
+        two = expected(2, "t-6", under_v2, 2)
+        self.assertEqual([under_v2["contentTag"], under_v2["referenceId"]], two)
+        self.assertNotEqual(expected(1, "t-6", under_v2, 2)[1], two[1])
+
+    def test_retries_a_callers_reference_under_the_records_version_after_a_failed_attempt(self) -> None:
+        api = setup()
+        api.idempotency = True
+        v1 = client(api, KEY_A, VECTOR_KEYRING_V1)
+        v1.records.identity.register()
+        v1.records.emit(record="t-7", **content("Under version 1"))
+        both = client(api, KEY_A, VECTOR_KEYRING)
+        both.records.identity.register()
+        api.requests.clear()
+        out = both.records.emit(record="t-7", idempotency_key="ref-7", **content("Again"))
+        ring = ring_of(VECTOR_KEYRING)
+        self.assertEqual([json.loads(r["body"])["envelope"]["kid"] for r in posts(api)], [ring.by_version(2).id, ring.by_version(1).id])
+        self.assertEqual(out["referenceId"], "ref-7")
+        self.assertEqual(len(api.writes[f"{RECORD_TYPE}\0{out['wireRecordId']}"]), 2)
+
+    def test_replays_under_the_claims_version_when_the_api_names_it(self) -> None:
+        api = setup()
+        api.idempotency = True
+        v1 = client(api, KEY_A, VECTOR_KEYRING_V1)
+        v1.records.identity.register()
+        first = v1.records.emit(record="t-8", idempotency_key="ref-8", **content("Once"))
+        both = client(api, KEY_A, VECTOR_KEYRING)
+        both.records.identity.register()
+        api.requests.clear()
+        again = both.records.emit(record="t-8", idempotency_key="ref-8", **content("Once"))
+        ring = ring_of(VECTOR_KEYRING)
+        self.assertEqual([json.loads(r["body"])["envelope"]["kid"] for r in posts(api)], [ring.by_version(2).id, ring.by_version(1).id])
+        self.assertEqual(again["intakeId"], first["intakeId"])
+        self.assertEqual(len(api.writes[f"{RECORD_TYPE}\0{first['wireRecordId']}"]), 1)
+
+    def test_a_claims_version_this_secret_does_not_hold_is_named(self) -> None:
+        api = setup()
+        api.idempotency = True
+        owner = client(api, KEY_A, VECTOR_KEYRING)
+        owner.records.identity.register()
+        owner.records.emit(record="t-9", idempotency_key="ref-9", **content("Under version 2"))
+        only_v1 = client(api, KEY_A, VECTOR_KEYRING_V1)
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            only_v1.records.emit(record="t-9", idempotency_key="ref-9", **content("Under version 2"))
+        self.assertEqual(caught.exception.code, "RECORDS_VERSION_NOT_HELD")
+        self.assertEqual(
+            caught.exception.message,
+            "This write was first made under encryption version 2, which this client doesn't hold. Open that version first, or use a new reference.",
+        )
+        self.assertEqual(len(posts(api)), 1)
+
+
+class AdmissionTest(unittest.TestCase):
+    """The checks intake makes, with its codes and messages (shared
+    admitRecordEntryV1), for what the SDK sends: a lifecycle and content."""
+
+    BASE = {"title": "T", "occurredAt": "2026-10-05T12:00:00Z", "actorId": "a", "payloads": [{"alg": "sha-256", "digest": "a" * 64, "byteLength": "1"}]}
+
+    def test_a_good_entry_is_admitted_and_a_type_with_no_layout_is_left_to_intake(self) -> None:
+        self.assertIsNone(admit_record_entry(RECORD_TYPE, "recorded", dict(self.BASE)))
+        self.assertIsNone(admit_record_entry("no-such-type", "anything", {}))
+
+    def test_each_refusal_carries_intakes_code_and_message(self) -> None:
+        cases = [
+            ("recorded", {k: v for k, v in self.BASE.items() if k != "actorId"}, ("RECORD_CONTENT_INVALID", "content.actorId is required by record-content/machine-action-record/v2")),
+            ("recorded", {**self.BASE, "payloads": []}, ("RECORD_PAYLOADS_REQUIRED", "content.payloads must carry at least 1 payload-ref/v1")),
+            ("recorded", {**self.BASE, "seq": 1}, ("RECORD_CONTENT_INVALID", "content.seq is PacSpace bookkeeping and is never part of a sealed record")),
+            ("recorded", {**self.BASE, "title": "x" * 1000}, ("RECORD_TITLE_TOO_LONG", None)),
+            ("recorded", {**self.BASE, "payloads": [{"alg": "md5", "digest": "a" * 64, "byteLength": "1"}]}, ("RECORD_PAYLOAD_ALG_UNSUPPORTED", "payload alg is not supported; use one of sha-256, hmac-sha-256")),
+            ("no-such-state", dict(self.BASE), ("RECORD_STATE_UNKNOWN", "lifecycle=no-such-state is not in the layout")),
+        ]
+        for lifecycle, entry, (code, message) in cases:
+            with self.subTest(code=code):
+                refused = admit_record_entry(RECORD_TYPE, lifecycle, entry)
+                self.assertIsNotNone(refused)
+                self.assertEqual(refused[0], code)
+                if message is not None:
+                    self.assertEqual(refused[1], message)
+
+    def test_answers_every_shared_admission_case_as_the_typescript_sdk_does(self) -> None:
+        cases = admission_cases()
+        self.assertGreater(len(cases), 100)
+        for case, content in cases:
+            with self.subTest(case=case["name"]):
+                refused = admit_record_entry(case["recordType"], case["lifecycle"], content)
+                expected = case["refused"]
+                self.assertEqual(None if refused is None else {"code": refused[0], "message": refused[1]}, expected)
+
+
+class EncryptedReadTest(unittest.TestCase):
+    def test_opens_the_sandbox_history_with_the_vector_secret(self) -> None:
+        api, bundle, a = with_fixture()
+        api.requests.clear()
+        history = a.records.history(None, wire_record_id=bundle["entityId"])
+        self.assertEqual([e["entry"] for e in history["opened"]], [1, 2, 3])
+        self.assertEqual(history["opened"][0]["content"]["title"], "Encrypted door proof")
+        self.assertEqual({k for e in history["opened"] for k in e}, {"entry", "recordHash", "content"})
+        self.assertEqual(set(a.records.receipt(None, 1, wire_record_id=bundle["entityId"])["opened"]), {"entry", "recordHash", "content"})
+        self.assertEqual(api.requests[0]["headers"]["x-pacspace-records-encryption"], "1")
+        both = client(api, KEY_A, VECTOR_KEYRING)
+        self.assertEqual(len(both.records.bundle(None, wire_record_id=bundle["entityId"])["opened"]), 3)
+
+    def test_opens_one_receipt(self) -> None:
+        _, bundle, a = with_fixture()
+        receipt = a.records.receipt(None, 2, wire_record_id=bundle["entityId"])
+        self.assertEqual(receipt["opened"]["entry"], 2)
+        self.assertEqual(receipt["opened"]["content"]["title"], "Encrypted door proof corrected")
+
+    def test_opens_one_receipt_of_a_record_hash_v3_record(self) -> None:
+        vectors = json.loads((Path(__file__).parent / "vectors" / "records-format2-v1.json").read_text(encoding="utf-8"))
+        case = next(c for c in vectors["cases"] if c["id"] == "HB3-01")["input"]
+        bundle = case["bundle"]
+        api = setup()
+        api.serve_history("cfixtureworkspacea0000001", bundle)
+        a = client(api, KEY_A)
+        record_key = R.b64url_encode(bytes.fromhex(case["recordKey"]))
+        receipt = a.records.receipt(None, 2, record_type=bundle["recordType"], wire_record_id=bundle["entityId"], record_key=record_key)
+        self.assertEqual(receipt["receipt"]["schema"], "semantic-receipt/v5")
+        self.assertEqual(receipt["opened"]["entry"], 2)
+        self.assertEqual(receipt["opened"]["recordHash"], bundle["receipts"][1]["recordHash"])
+        self.assertIsInstance(receipt["opened"]["content"], dict)
+
+    def test_a_history_served_for_another_record_is_refused(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING_V1)
+        a.records.identity.register()
+        asked = R.wire_record_id(ring_of(VECTOR_KEYRING_V1).id_key, RECORD_TYPE, "asked-for")
+        api.serve_history("cfixtureworkspacea0000001", door_proof_bundle(), asked)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.history("asked-for")
+        self.assertEqual(caught.exception.code, "RECORDS_HISTORY_OTHER_RECORD")
+        self.assertEqual(caught.exception.message, RECORDS_ENCRYPTION_WORDS["RECORDS_HISTORY_OTHER_RECORD"])
+
+    def test_a_changed_envelope_is_refused_by_entry(self) -> None:
+        api = setup()
+        bundle = door_proof_bundle()
+        receipt = next(r for r in bundle["receipts"] if r["seq"] == 1)
+        ct = receipt["envelopes"][0]["ct"]
+        receipt["envelopes"][0]["ct"] = ("B" if ct[0] == "A" else "A") + ct[1:]
+        # Served with a digest that covers the changed envelope, so the change shows where the entry is opened.
+        bundle["bundleDigest"] = bundle_digest(bundle)
+        api.serve_history("cfixtureworkspacea0000001", bundle)
+        a = client(api, KEY_A, VECTOR_KEYRING_V1)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.history(None, wire_record_id=bundle["entityId"])
+        self.assertEqual(caught.exception.code, "RECORDS_ENTRY_UNOPENED")
+        self.assertEqual(caught.exception.message, "Entry 2 didn't open. The record or the workspace secret is not the one expected.")
+
+    def test_names_the_version_a_secret_does_not_hold(self) -> None:
+        api, bundle, _ = with_fixture()
+        other = client(api, KEY_A, generate_workspace_secret())
+        with self.assertRaises(PacSpaceError) as caught:
+            other.records.history(None, wire_record_id=bundle["entityId"])
+        self.assertEqual(caught.exception.code, "RECORDS_VERSION_NOT_HELD")
+        self.assertEqual(caught.exception.message, "This record is under version 1, which this workspace secret doesn't hold.")
+
+    def test_keeps_a_copy_that_opens_with_its_own_key_and_refuses_a_plaintext_record(self) -> None:
+        _, bundle, a = with_fixture()
+        kept = a.records.keep_copy(wire_record_id=bundle["entityId"])
+        self.assertEqual(kept["schema"], "pacspace-record-copy/v1")
+        opened = R.open_record_copy_v1(AEAD, json.loads(kept["bytes"].decode("utf-8")))
+        self.assertTrue(opened["ok"])
+        self.assertEqual(len([e for e in opened["opened"] if "content" in e]), 3)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.keep_copy("plain-1", encrypted=False)
+        self.assertEqual(caught.exception.code, "RECORDS_NOT_ENCRYPTED")
+
+    def test_reads_with_a_grant_and_the_exported_record_key_with_no_secret(self) -> None:
+        api, bundle, a = with_fixture()
+        rk = a.records.record_key(wire_record_id=bundle["entityId"])
+        grant = a.records.grants.create(wire_record_id=bundle["entityId"], kind="BEARER")
+        reader = client(api, KEY_C)
+        api.requests.clear()
+        history = reader.records.history(None, wire_record_id=bundle["entityId"], grant=grant["grant"], record_key=rk)
+        self.assertEqual(len(history["opened"]), 3)
+        self.assertEqual(api.requests[0]["headers"]["x-pacspace-grant"], grant["grant"])
+        self.assertNotIn("grant=", api.requests[0]["url"])
+
+
+class RefusedAfterRekeyTest(unittest.TestCase):
+    """A re-key swaps committed entries only (ADR 0015, N15), so an attempt's
+    refused envelope keeps its original version: it is opened with the held
+    key its kid names, and one no held key opens is reported as not opened
+    while the history is still read (David, 2026-10-05; #630's mirror)."""
+
+    def keys(self, wire: str):
+        ring = ring_of(VECTOR_KEYRING)
+        return R.record_key_of(ring.by_version(1), wire), R.record_key_of(ring.by_version(2), wire)
+
+    def rekeyed(self):
+        bundle = door_proof_bundle()
+        v1, v2 = self.keys(bundle["entityId"])
+        for receipt in bundle["receipts"]:
+            if receipt["schema"] not in ("semantic-receipt/v4", "semantic-receipt/v5"):
+                continue
+            opened = R.open_record_entry_envelope(AEAD, receipt["envelopes"][0], bundle["recordType"], bundle["entityId"], record_key=v1)
+            receipt["envelopes"].append(R.seal_record_entry(AEAD, v2, bundle["recordType"], bundle["entityId"], opened["content"], opened["saltKey"]))
+        # As the API serves a re-keyed record: the digest covers the envelopes served.
+        bundle["bundleDigest"] = bundle_digest(bundle)
+        return bundle, v1, v2
+
+    def refused_of(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
+        self.assertTrue(result["ok"], result)
+        return [{"seq": r["seq"], "opened": r["opened"]} for r in result["refused"]]
+
+    def test_before_a_rekey_the_record_key_opens_the_refused_envelope(self) -> None:
+        bundle = door_proof_bundle()
+        v1, _ = self.keys(bundle["entityId"])
+        self.assertEqual(self.refused_of(R.open_record_history_v3(AEAD, bundle, v1)), [{"seq": 3, "opened": True}])
+
+    def test_with_only_the_new_version_the_attempt_is_not_opened(self) -> None:
+        bundle, _, v2 = self.rekeyed()
+        result = R.open_record_history_v3(AEAD, bundle, v2, {"recordType": bundle["recordType"], "wireRecordId": bundle["entityId"]})
+        self.assertEqual(self.refused_of(result), [{"seq": 3, "opened": False}])
+        self.assertEqual(len([e for e in result["opened"] if "content" in e]), 3)
+
+    def test_with_the_old_version_held_too_the_attempt_opens_with_the_key_its_kid_names(self) -> None:
+        bundle, v1, v2 = self.rekeyed()
+        self.assertEqual(self.refused_of(R.open_record_history_v3(AEAD, bundle, v2, record_keys=[v1])), [{"seq": 3, "opened": True}])
+
+    def test_keys_that_arrived_as_bytes_are_tried_and_none_opening_is_not_opened(self) -> None:
+        bundle, v1, v2 = self.rekeyed()
+        bare2 = R.record_key_from_bytes(R.export_key_bytes(v2))
+        bare1 = R.record_key_from_bytes(R.export_key_bytes(v1))
+        self.assertEqual(self.refused_of(R.open_record_history_v3(AEAD, bundle, bare2)), [{"seq": 3, "opened": False}])
+        self.assertEqual(self.refused_of(R.open_record_history_v3(AEAD, bundle, bare2, record_keys=[bare1])), [{"seq": 3, "opened": True}])
+
+    def test_a_changed_envelope_under_a_held_version_is_still_refused(self) -> None:
+        bundle = door_proof_bundle()
+        v1, _ = self.keys(bundle["entityId"])
+        envelope = bundle["refused"][0]["envelope"]
+        envelope["ct"] = ("B" if envelope["ct"][0] == "A" else "A") + envelope["ct"][1:]
+        bundle["bundleDigest"] = bundle_digest(bundle)
+        result = R.open_record_history_v3(AEAD, bundle, v1)
+        self.assertEqual((result["ok"], result["code"], result.get("seq")), (False, "RECORD_ENVELOPE_AUTH_FAILED", 3))
+
+    def test_a_refused_record_hash_that_does_not_match_is_still_refused(self) -> None:
+        bundle = door_proof_bundle()
+        v1, _ = self.keys(bundle["entityId"])
+        bundle["refused"][0]["recordHash"] = "0x" + "00" * 32
+        bundle["bundleDigest"] = bundle_digest(bundle)
+        result = R.open_record_history_v3(AEAD, bundle, v1)
+        self.assertEqual((result["ok"], result["code"]), (False, "RECORD_ENTRY_HASH_MISMATCH"))
+
+    def test_a_key_id_from_bytes_must_be_64_hex(self) -> None:
+        with self.assertRaises(R.RecordsEncryptionError):
+            R.record_key_from_bytes(b"\x01" * 32, "not-hex")
+        self.assertEqual(R.record_key_from_bytes(b"\x01" * 32, "a" * 64).records_key_id, "a" * 64)
+
+
+class PinsHoldersGrantsTest(unittest.TestCase):
+    def test_a_grant_to_a_confirmed_workspace_carries_a_wrap_it_reads_with_its_own_secret(self) -> None:
+        api, bundle, a = with_fixture()
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        grant = a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        self.assertRegex(grant["readerWrap"]["rkid"], r"^[0-9a-f]{64}$")
+        history = c.records.history(None, wire_record_id=bundle["entityId"], grant=grant["grant"], owner="cfixtureworkspacea0000001")
+        self.assertEqual(len(history["opened"]), 3)
+
+    def test_a_grant_opens_only_with_the_owner_named_in_the_expected_form(self) -> None:
+        api, bundle, a = with_fixture()
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        grant = a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        self.assertEqual(api.grants[0]["readerWrap"]["wrap"]["v"], 2)
+        api.requests.clear()
+        for owner in (None, "ws_a", "CFIXTUREWORKSPACEA0000001", "c" * 33):
+            with self.assertRaises(PacSpaceError) as caught:
+                c.records.history(None, wire_record_id=bundle["entityId"], grant=grant["grant"], owner=owner)
+            self.assertEqual((caught.exception.code, caught.exception.message), ("RECORDS_OWNER_INVALID", "This workspace id isn't in the expected form."))
+        self.assertEqual([r for r in api.requests if r["url"].endswith("/grant-key")], [])
+        with self.assertRaises(PacSpaceError) as caught:
+            c.records.history(None, wire_record_id=bundle["entityId"], grant=grant["grant"], owner="cfixtureworkspaceb0000001")
+        self.assertEqual(caught.exception.code, "RECORDS_ENTRY_UNOPENED")
+
+    def test_a_substituted_key_is_refused_before_any_wrap_and_a_changed_one_after_the_pin(self) -> None:
+        api, bundle, a = with_fixture()
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        impostor = client(api, KEY_B, generate_workspace_secret())
+        impostor.records.identity.register()
+        served = api.workspaces[KEY_B]["identity"]
+        api.substituted["cfixtureworkspacec0000001"] = {"xwingPublic": served["xwingPublic"], "xwingPublicId": served["xwingPublicId"]}
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        self.assertEqual(caught.exception.code, "RECORDS_CODE_MISMATCH")
+        self.assertEqual(caught.exception.message, RECORDS_ENCRYPTION_WORDS["RECORDS_CODE_MISMATCH"])
+        self.assertFalse(any(r["method"] != "GET" for r in api.requests))
+
+        api.substituted.clear()
+        a.records.holders.add(workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        api.substituted["cfixtureworkspacec0000001"] = {"xwingPublic": served["xwingPublic"], "xwingPublicId": served["xwingPublicId"]}
+        api.requests.clear()
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001")
+        self.assertEqual(caught.exception.code, "RECORDS_PIN_CHANGED")
+        self.assertFalse(any(r["method"] != "GET" for r in api.requests))
+
+    def test_asks_for_the_code_when_no_pin_is_held(self) -> None:
+        api, bundle, a = with_fixture()
+        client(api, KEY_C, generate_workspace_secret()).records.identity.register()
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001")
+        self.assertEqual(caught.exception.code, "RECORDS_CODE_REQUIRED")
+
+    def test_a_workspace_holder_confirms_and_reads_and_a_record_holder_confirms_by_opening_an_entry(self) -> None:
+        api, bundle, a = with_fixture()
+        b = client(api, KEY_B, generate_workspace_secret())
+        code = b.records.identity.register()["code"]
+        added = a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=code, required=True)
+        self.assertEqual(added["wraps"], [{"version": 1, "state": "stored"}])
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", scope="record", wire_record_id=bundle["entityId"])
+        self.assertEqual([r["state"] for r in b.records.holdings.confirm()], ["confirmed", "confirmed"])
+        history = b.records.history(None, wire_record_id=bundle["entityId"], holder_for="cfixtureworkspacea0000001")
+        self.assertEqual(len(history["opened"]), 3)
+
+    def test_a_wrap_that_does_not_open_is_refused_so_the_writer_is_told(self) -> None:
+        api, _, a = with_fixture()
+        b = client(api, KEY_B, generate_workspace_secret())
+        code = b.records.identity.register()["code"]
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=code)
+        wrap = api.holders[0]["wraps"][0]["wrap"]
+        wrap["ct"] = ("B" if wrap["ct"][0] == "A" else "A") + wrap["ct"][1:]
+        self.assertEqual(b.records.holdings.confirm(), [{"holderId": api.holders[0]["holderId"], "version": 1, "state": "refused", "reason": "unopened"}])
+
+    def test_another_identity_than_the_secret_opens_is_refused(self) -> None:
+        api, _, _ = with_fixture()
+        stranger = client(api, KEY_A, generate_workspace_secret())
+        with self.assertRaises(PacSpaceError) as caught:
+            stranger.records.identity.register()
+        self.assertEqual(caught.exception.code, "RECORDS_IDENTITY_OTHER")
+
+    def test_this_workspaces_code_comes_from_its_own_seed_and_other_served_key_bytes_are_refused(self) -> None:
+        api, _, a = with_fixture()
+        honest = a.records.identity.register()
+        client(api, KEY_C, generate_workspace_secret()).records.identity.register()
+        api.own_key_swapped["cfixtureworkspacea0000001"] = api.workspaces[KEY_C]["identity"]["xwingPublic"]
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.identity.register()
+        self.assertEqual(caught.exception.code, "RECORDS_IDENTITY_OTHER")
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.rotate(VECTOR_KEYRING)
+        self.assertEqual(caught.exception.code, "RECORDS_IDENTITY_OTHER")
+        api.own_key_swapped.clear()
+        self.assertEqual(a.records.identity.register()["code"], honest["code"])
+
+    def test_the_file_pin_store_keeps_pins_readable_by_its_owner_only(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "pins", "pins.json")
+            store = file_pin_store(path)
+            self.assertIsNone(store.get("cfixtureworkspaceb0000001"))
+            store.set("cfixtureworkspaceb0000001", {"publicKeyId": "c" * 64, "confirmedAt": "2026-10-05T12:00:00.000Z"})
+            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+            self.assertEqual(file_pin_store(path).get("cfixtureworkspaceb0000001")["publicKeyId"], "c" * 64)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("not pins")
+            self.assertIsNone(file_pin_store(path).get("cfixtureworkspaceb0000001"))
+
+
+class RotateAndRekeyTest(unittest.TestCase):
+    def test_rotates_to_version_2_registers_it_wraps_it_to_pinned_holders_and_the_seed_under_it(self) -> None:
+        api, _, a = with_fixture()
+        b = client(api, KEY_B, generate_workspace_secret())
+        code = b.records.identity.register()["code"]
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=code)
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.rotate(next_workspace_secret(VECTOR_KEYRING))
+        self.assertEqual(caught.exception.code, "RECORDS_ROTATE_NOT_NEXT")
+        rotated = a.records.rotate(VECTOR_KEYRING)
+        ring = ring_of(VECTOR_KEYRING)
+        self.assertEqual((rotated["version"], rotated["kid"]), (2, ring.by_version(2).id))
+        self.assertEqual([(h["workspaceId"], h["wrapped"]) for h in rotated["holders"]], [("cfixtureworkspaceb0000001", True)])
+        self.assertEqual(api.workspaces[KEY_A]["versions"][2], ring.by_version(2).id)
+        self.assertEqual(sorted(w["version"] for w in api.workspaces[KEY_A]["identity"]["seedWraps"]), [1, 2])
+        self.assertEqual(sorted(w["version"] for w in api.holders[0]["wraps"]), [1, 2])
+
+    def test_adds_the_version_with_its_format_2_holder_wraps_in_one_request(self) -> None:
+        api, _, a = with_fixture()
+        b = client(api, KEY_B, generate_workspace_secret())
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=b.records.identity.register()["code"])
+        client(api, KEY_C, generate_workspace_secret()).records.identity.register()
+        api.holders.append(
+            {
+                "holderId": "rhd_unpinned",
+                "ownerWorkspaceId": "cfixtureworkspacea0000001",
+                "holderWorkspaceId": "cfixtureworkspacec0000001",
+                "scope": "workspace",
+                "required": True,
+                "pinnedId": "ab" * 32,
+                "record": None,
+                "removedAt": None,
+                "wraps": [],
+            }
+        )
+        api.version_puts.clear()
+        rotated = a.records.rotate(VECTOR_KEYRING)
+        self.assertEqual([p["version"] for p in api.version_puts], [2])
+        body = api.version_puts[0]["body"]
+        self.assertEqual((body["wrapFormat"], len(body["holderWraps"])), (2, 1))
+        self.assertEqual((body["holderWraps"][0]["holderId"], body["holderWraps"][0]["wrap"]["v"]), (api.holders[0]["holderId"], 2))
+        self.assertIn({"holderId": "rhd_unpinned", "workspaceId": "cfixtureworkspacec0000001", "wrapped": False, "code": "RECORDS_CODE_REQUIRED"}, rotated["holders"])
+        self.assertEqual(rotated["holdersNeedingConfirmation"], ["rhd_unpinned"])
+
+    def test_reads_the_holder_set_again_once_then_refuses(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING_V1)
+        a.records.identity.register()
+        bumps = {"count": 0}
+
+        def race(method: str, url: str) -> None:
+            if method == "PUT" and url.endswith("/encryption/versions/2"):
+                bumps["count"] += 1
+                api.holder_set_epoch += 1
+
+        api.fail = race
+        with self.assertRaises(PacSpaceError) as caught:
+            a.records.rotate(VECTOR_KEYRING)
+        self.assertEqual(caught.exception.code, "RECORDS_HOLDER_SET_CHANGED")
+        self.assertEqual(bumps["count"], 2)
+        self.assertNotIn(2, api.workspaces[KEY_A]["versions"])
+
+    def test_registers_only_the_versions_the_api_does_not_list(self) -> None:
+        api = setup()
+        a = client(api, KEY_A, VECTOR_KEYRING_V1)
+        a.records.identity.register()
+        a.records.identity.register()
+        self.assertEqual([p["version"] for p in api.version_puts], [1])
+
+    def test_rekeys_latest_first_with_hashes_unchanged_and_grants_rewrapped_and_a_repeat_is_done(self) -> None:
+        api, bundle, a = with_fixture()
+        b = client(api, KEY_B, generate_workspace_secret())
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=b.records.identity.register()["code"])
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        a.records.rotate(VECTOR_KEYRING)
+        out = a.records.rekey(wire_record_id=bundle["entityId"], to_version=2)
+        self.assertEqual(out["entries"], [{"entry": 3, "state": "swapped"}, {"entry": 2, "state": "swapped"}, {"entry": 1, "state": "swapped"}])
+        self.assertEqual(out["grants"], [{"grantId": api.grants[0]["grantId"], "wrapped": True}])
+
+        v2 = R.record_key_of(ring_of(VECTOR_KEYRING).by_version(2), bundle["entityId"])
+        swapped = api.rekeyed[f"{RECORD_TYPE}\0{bundle['entityId']}"]
+        for receipt in bundle["receipts"]:
+            if receipt["schema"] not in ("semantic-receipt/v4", "semantic-receipt/v5"):
+                continue
+            opened = R.open_record_entry_envelope(AEAD, swapped[receipt["seq"]], RECORD_TYPE, bundle["entityId"], record_key=v2)
+            self.assertTrue(opened["ok"])
+            commit = commit_record_content_v3 if receipt.get("recordHashVersion") == 3 else commit_record_content_v2
+            self.assertEqual(commit(opened["content"], opened["saltKey"])["recordHash"], receipt["recordHash"])
+        self.assertEqual(len(client(api, KEY_A, VECTOR_KEYRING).records.history(None, wire_record_id=bundle["entityId"])["opened"]), 3)
+        b.records.holdings.confirm()
+        self.assertEqual(len(b.records.history(None, wire_record_id=bundle["entityId"], holder_for="cfixtureworkspacea0000001")["opened"]), 3)
+        self.assertEqual(len(c.records.history(None, wire_record_id=bundle["entityId"], grant=api.grants[0]["token"], owner="cfixtureworkspacea0000001")["opened"]), 3)
+        again = a.records.rekey(wire_record_id=bundle["entityId"], to_version=2)
+        self.assertTrue(all(e["state"] == "already" for e in again["entries"]))
+
+    def test_reports_where_a_rekey_stopped(self) -> None:
+        api = setup()
+        bundle = door_proof_bundle()
+        bundle["refused"] = []
+        bundle["bundleDigest"] = bundle_digest(bundle)
+        api.serve_history("cfixtureworkspacea0000001", bundle)
+        owner = client(api, KEY_A, VECTOR_KEYRING)
+        owner.records.identity.register()
+        swaps = {"count": 0}
+
+        def fail(method: str, url: str) -> None:
+            if url.endswith("/envelope"):
+                swaps["count"] += 1
+                if swaps["count"] == 2:
+                    raise OSError("network")
+
+        api.fail = fail
+        with self.assertRaises(PacSpaceError) as caught:
+            owner.records.rekey(wire_record_id=bundle["entityId"], to_version=2)
+        self.assertEqual(caught.exception.code, "RECORDS_REKEY_STOPPED")
+        self.assertEqual(caught.exception.message, "Re-encryption stopped at entry 2. Entries after it are done; run it again to finish.")
+
+
+class OpenLinkTest(unittest.TestCase):
+    def link_setup(self, access_code: Optional[str]):
+        api = setup()
+        fixture = disclosure_link()
+        api.links[fixture["handle"]] = {"form": fixture["form"], "envelope": fixture["envelope"], "accessCode": access_code}
+        return api, fixture
+
+    def test_opens_a_link_with_the_key_after_hash_and_the_access_code(self) -> None:
+        api, fixture = self.link_setup("K7Q2MX")
+        out = client(api, KEY_C).records.open(f"https://app.pacspace.io/c/{fixture['handle']}#{fixture['fragment']}", access_code="K7Q2MX")
+        self.assertEqual([e["entry"] for e in out["entries"]], [1, 3])
+        self.assertIn({"pointer": "/title", "value": fixture["revealedTitle"]}, out["entries"][0]["fields"])
+        self.assertGreater(out["entries"][0]["withheld"], 0)
+        self.assertNotIn(fixture["withheldTitle"], json.dumps([e["fields"] for e in out["entries"]]))
+        self.assertEqual(out["chainCheck"], "not-checked")
+        self.assertTrue(all("#" not in r["url"] and "dk=" not in r["url"] for r in api.requests))
+
+    def test_opens_it_with_this_workspaces_wrap_when_the_link_has_no_key(self) -> None:
+        api, fixture = self.link_setup(None)
+        with self.assertRaises(PacSpaceError) as caught:
+            client(api, KEY_C).records.open(f"https://app.pacspace.io/c/{fixture['handle']}")
+        self.assertEqual(caught.exception.code, "RECORDS_LINK_NO_KEY")
+        owner = client(api, KEY_A, VECTOR_KEYRING_V1)
+        owner.records.identity.register()
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        stored = owner.records.share_key_wrap(
+            wire_record_id="qno1FsvCZIpEt1eZo2BFiA", handle=fixture["handle"], disclosure_key=fixture["fragment"], workspace_id="cfixtureworkspacec0000001", confirmed_code=code
+        )
+        self.assertRegex(stored["fragment"], r"^dd=[A-Za-z0-9_-]{43}$")
+        self.assertEqual(api.disclosure_wraps[0]["wrap"]["v"], 2)
+        self.assertEqual(len(c.records.open(f"https://app.pacspace.io/c/{fixture['handle']}#{stored['fragment']}")["entries"]), 2)
+        self.assertTrue(all("#" not in r["url"] and "dd=" not in r["url"] for r in api.requests))
+
+    def test_a_key_from_a_wrap_opens_only_the_disclosure_the_links_dd_names(self) -> None:
+        api, fixture = self.link_setup(None)
+        owner = client(api, KEY_A, VECTOR_KEYRING_V1)
+        owner.records.identity.register()
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        target = {"wire_record_id": "qno1FsvCZIpEt1eZo2BFiA", "handle": fixture["handle"], "workspace_id": "cfixtureworkspacec0000001", "confirmed_code": code}
+        stored = owner.records.share_key_wrap(disclosure_key=fixture["fragment"], **target)
+        mismatch = ("RECORDS_DISCLOSURE_LINK_MISMATCH", "This shared record doesn't match the link it came from.")
+        for link in (f"https://app.pacspace.io/c/{fixture['handle']}", f"https://app.pacspace.io/c/{fixture['handle']}#dd={'A' * 43}"):
+            with self.assertRaises(PacSpaceError) as caught:
+                c.records.open(link)
+            self.assertEqual((caught.exception.code, caught.exception.message), mismatch)
+        self.assertEqual(len(c.records.open(f"https://app.pacspace.io/c/{fixture['handle']}#{stored['fragment']}")["entries"]), 2)
+        before = len(api.disclosure_wraps)
+        with self.assertRaises(PacSpaceError) as caught:
+            owner.records.share_key_wrap(disclosure_key="dk=" + "A" * 43, **target)
+        self.assertEqual(caught.exception.code, mismatch[0])
+        self.assertEqual(len(api.disclosure_wraps), before)
+
+    def test_a_link_for_another_handle_does_not_open(self) -> None:
+        api, fixture = self.link_setup(None)
+        api.links["csh1_other"] = {"form": fixture["form"], "envelope": fixture["envelope"], "accessCode": None}
+        with self.assertRaises(PacSpaceError) as caught:
+            client(api, KEY_C).records.open(f"https://app.pacspace.io/c/csh1_other#{fixture['fragment']}")
+        self.assertEqual(caught.exception.code, "DISCLOSURE_ENVELOPE_AUTH_FAILED")
+
+
+class WordsTest(unittest.TestCase):
+    def test_ships_exactly_the_approved_sentences_ascii_only(self) -> None:
+        self.assertEqual(len(RECORDS_ENCRYPTION_WORDS), 20)
+        self.assertEqual(
+            RECORDS_ENCRYPTION_WORDS["RECORDS_LAYOUT_NOT_READ"],
+            "This file was written under a record layout this version does not read, so it could not be checked.",
+        )
+        for sentence in RECORDS_ENCRYPTION_WORDS.values():
+            self.assertRegex(sentence, r"^[\x20-\x7e]+$")
+        self.assertEqual(
+            RECORDS_ENCRYPTION_WORDS["RECORDS_SECRET_REQUIRED"],
+            "Encrypted records need the workspace secret. Pass it as records.secret or records.secretProvider.",
+        )
+
+
+def replace_key_as_the_key_pages_do(api: FakeEncryptedApi, api_key: str, secret: str, following: str) -> A.WorkspaceSeed:
+    """Card 10, F4: the state the key pages' replacement leaves, for a
+    workspace on ``secret`` moving to ``following``'s new version."""
+    identity = api.workspaces[api_key]["identity"]
+    ring = ring_of(secret)
+    old = next(
+        opened["seed"]
+        for opened in (A.open_seed_wrap(w["wrap"], identity["xwingPublicId"], keyring=ring) for w in identity["seedWraps"])
+        if opened["ok"]
+    )
+    new = A.generate_workspace_seed()
+    next_ring = ring_of(following)
+    version = max(next_ring.versions)
+    wrap_key = next_ring.wrap_key(version)
+    seed_wraps = {old.public_key_id: A.seal_seed_wrap(wrap_key, old), new.public_key_id: A.seal_seed_wrap(wrap_key, new)}
+    api.replace_identity(api_key, version, next_ring.by_version(version).id, seed_wraps, R.b64url_encode(new.public_key))
+    return new
+
+
+class KeyReplacementTest(unittest.TestCase):
+    """Card 10, F4 (design v5): new versions carry every key's seed, and what
+    was wrapped to a key before it was replaced still opens."""
+
+    def test_rotate_carries_the_seed_in_the_version_and_no_longer_puts_the_identity(self) -> None:
+        api, _, a = with_fixture()
+        identity = api.workspaces[KEY_A]["identity"]
+        api.requests.clear()
+        a.records.rotate(VECTOR_KEYRING)
+        self.assertEqual(list(api.version_puts[-1]["body"]["seedWraps"].keys()), [identity["xwingPublicId"]])
+        self.assertEqual(sorted(w["version"] for w in identity["seedWraps"]), [1, 2])
+        self.assertFalse(any(r["method"] == "PUT" and r["url"].endswith("/encryption/identity") for r in api.requests))
+
+    def test_a_server_on_the_file_from_before_the_replacement_is_told_w_c10_b_18(self) -> None:
+        api, _, _ = with_fixture()
+        replace_key_as_the_key_pages_do(api, KEY_A, VECTOR_KEYRING_V1, VECTOR_KEYRING)
+        with self.assertRaises(PacSpaceError) as caught:
+            client(api, KEY_A, VECTOR_KEYRING_V1).records.identity.register()
+        self.assertEqual(caught.exception.code, "RECORDS_SECRET_FILE_OUTDATED")
+        with self.assertRaises(PacSpaceError) as caught:
+            client(api, KEY_A, VECTOR_KEYRING_V1).records.rotate(next_workspace_secret(VECTOR_KEYRING_V1))
+        self.assertEqual(caught.exception.code, "RECORDS_SECRET_FILE_OUTDATED")
+        self.assertEqual(caught.exception.message, "This workspace replaced its key. Use its new secret file on this server.")
+
+    def test_later_versions_carry_the_retired_seed(self) -> None:
+        api, _, _ = with_fixture()
+        new = replace_key_as_the_key_pages_do(api, KEY_A, VECTOR_KEYRING_V1, VECTOR_KEYRING)
+        old_id = api.workspaces[KEY_A]["retired"][0]["xwingPublicId"]
+        client(api, KEY_A, VECTOR_KEYRING).records.rotate(next_workspace_secret(VECTOR_KEYRING))
+        self.assertEqual(sorted(api.version_puts[-1]["body"]["seedWraps"].keys()), sorted([old_id, new.public_key_id]))
+        self.assertEqual(sorted(w["version"] for w in api.workspaces[KEY_A]["retired"][0]["seedWraps"]), [1, 2, 3])
+
+    def test_a_holder_reads_what_was_wrapped_to_its_key_before_it_was_replaced(self) -> None:
+        api, bundle, a = with_fixture()
+        b_secret = generate_workspace_secret()
+        code = client(api, KEY_B, b_secret).records.identity.register()["code"]
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=code)
+        replace_key_as_the_key_pages_do(api, KEY_B, b_secret, next_workspace_secret(b_secret))
+        b = client(api, KEY_B, next_workspace_secret(b_secret))
+        self.assertEqual([r["state"] for r in b.records.holdings.confirm()], ["confirmed"])
+        history = b.records.history(None, wire_record_id=bundle["entityId"], holder_for="cfixtureworkspacea0000001")
+        self.assertEqual(len(history["opened"]), 3)
+
+    def test_a_retired_key_whose_seed_opens_to_other_key_bytes_is_refused_w_c10_b_8(self) -> None:
+        api, _, _ = with_fixture()
+        replace_key_as_the_key_pages_do(api, KEY_A, VECTOR_KEYRING_V1, VECTOR_KEYRING)
+        client(api, KEY_B, generate_workspace_secret()).records.identity.register()
+        api.workspaces[KEY_A]["retired"][0]["xwingPublic"] = api.workspaces[KEY_B]["identity"]["xwingPublic"]
+        with self.assertRaises(PacSpaceError) as caught:
+            client(api, KEY_A, VECTOR_KEYRING).records.rotate(next_workspace_secret(VECTOR_KEYRING))
+        self.assertEqual(caught.exception.code, "RECORDS_RETIRED_KEY_MISMATCH")
+        self.assertNotIn(3, api.workspaces[KEY_A]["versions"])
+
+
+class InterceptionTest(unittest.TestCase):
+    """Every encrypted path driven, then every request (URL, headers, body)
+    searched for the workspace secrets, the id key, each K_v and W_v, each
+    record key, every salt key, the seed, the disclosure key and the
+    plaintext, as raw text, hex, base64 and base64url."""
+
+    def test_no_request_carries_a_secret_a_key_a_salt_key_a_seed_or_the_plaintext(self) -> None:
+        mark = "Interception plaintext marker 4f1c"
+        api, bundle, a = with_fixture()
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        b = client(api, KEY_B, generate_workspace_secret())
+        b_code = b.records.identity.register()["code"]
+
+        a.records.emit(record="interception-1", note=f"{mark} note", **content(mark))
+        self.assertTrue(a.records.check(a.records.history(None, wire_record_id=bundle["entityId"]))["ok"])
+        a.records.receipt(None, 1, wire_record_id=bundle["entityId"])
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=b_code)
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", scope="record", wire_record_id=bundle["entityId"])
+        b.records.holdings.confirm()
+        held = b.records.history(None, wire_record_id=bundle["entityId"], holder_for="cfixtureworkspacea0000001")
+        self.assertTrue(b.records.check(held, holder_for="cfixtureworkspacea0000001")["ok"])
+        grant = a.records.grants.create(wire_record_id=bundle["entityId"], kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        granted = c.records.history(None, wire_record_id=bundle["entityId"], grant=grant["grant"], owner="cfixtureworkspacea0000001")
+        self.assertTrue(c.records.check(granted, grant=grant["grant"], owner="cfixtureworkspacea0000001")["ok"])
+        fixture = disclosure_link()
+        api.links[fixture["handle"]] = {"form": fixture["form"], "envelope": fixture["envelope"], "accessCode": None}
+        shared = a.records.share_key_wrap(
+            wire_record_id=bundle["entityId"], handle=fixture["handle"], disclosure_key=fixture["fragment"], workspace_id="cfixtureworkspacec0000001"
+        )
+        c.records.open(f"https://app.pacspace.io/c/{fixture['handle']}#{shared['fragment']}")
+        a.records.rotate(VECTOR_KEYRING)
+        a.records.rekey(wire_record_id=bundle["entityId"], to_version=2)
+
+        ring = ring_of(VECTOR_KEYRING)
+        secrets: List[bytes] = [s for _, s in R.parse_records_keyring_file(VECTOR_KEYRING)["secrets"]]
+        secrets.append(R.export_key_bytes(ring.id_key))
+        for v in ring.versions:
+            secrets += [R.export_key_bytes(ring.by_version(v)), R.export_key_bytes(ring.wrap_key(v))]
+        emitted_wire = R.wire_record_id(ring.id_key, RECORD_TYPE, "interception-1")
+        for wire in (bundle["entityId"], emitted_wire):
+            for v in ring.versions:
+                secrets.append(R.export_key_bytes(R.record_key_of(ring.by_version(v), wire)))
+        salt_keys: List[str] = []
+        v1_key = R.record_key_of(ring.by_version(1), bundle["entityId"])
+        for receipt in bundle["receipts"]:
+            if receipt.get("envelopes"):
+                opened = R.open_record_entry_envelope(AEAD, receipt["envelopes"][0], RECORD_TYPE, bundle["entityId"], record_key=v1_key)
+                if opened["ok"]:
+                    salt_keys.append(opened["saltKey"])
+        emitted = api.writes[f"{RECORD_TYPE}\0{emitted_wire}"][0]["body"]
+        opened_emit = R.open_record_entry_envelope(AEAD, emitted["envelope"], RECORD_TYPE, emitted_wire, record_key=R.record_key_of(ring.by_version(1), emitted_wire))
+        self.assertTrue(opened_emit["ok"])
+        salt_keys.append(opened_emit["saltKey"])
+        identity = api.workspaces[KEY_A]["identity"]
+        seeds = 0
+        for w in identity["seedWraps"]:
+            seed = A.open_seed_wrap(w["wrap"], identity["xwingPublicId"], keyring=ring)
+            if seed["ok"]:
+                secrets.append(A.export_workspace_seed_bytes(seed["seed"]))
+                seeds += 1
+        self.assertEqual(seeds, 2)
+        secrets.append(base64.urlsafe_b64decode(fixture["fragment"][3:] + "="))
+
+        needles = set()
+        for data in secrets:
+            needles.add(data.hex())
+            needles.add(base64.b64encode(data).decode("ascii"))
+            needles.add(base64.urlsafe_b64encode(data).decode("ascii").rstrip("="))
+        for salt in salt_keys:
+            needles.add(salt[2:] if salt.startswith("0x") else salt)
+        needles.add(mark)
+        needles.add("Encrypted door proof")
+        self.assertGreaterEqual(len(salt_keys), 4)
+        self.assertGreaterEqual(len(secrets), 13)
+
+        seen = [f"{r['method']} {r['url']}\n{json.dumps(r['headers'])}\n{r['body']}".lower() for r in api.requests]
+        for needle in needles:
+            found = next((text for text in seen if needle.lower() in text), None)
+            self.assertIsNone(found, f"a request carries {needle[:6]}...")
+        self.assertGreater(len(api.requests), 30)
+
+
+OWNER = "cfixtureworkspacea0000001"
+OTHER_REF = {"alg": "sha-256", "digest": "b" * 64, "byteLength": "10"}
+NOT_HELD = "A fingerprint you hold is not among the committed payloads."
+DID_NOT_FINISH = "The check did not finish: "
+
+
+def unopened(entry: int) -> str:
+    return f"Entry {entry} didn't open. The record or the workspace secret is not the one expected."
+
+
+def row_of(result: Dict[str, Any], entry: int) -> Dict[str, Any]:
+    return next(row for row in result["entries"] if row["entry"] == entry)
+
+
+def outcome(result: Dict[str, Any]) -> tuple:
+    return (result["ok"], result["failedCheck"], result["reason"])
+
+
+def changed_ct(text: str) -> str:
+    return ("B" if text[0] == "A" else "A") + text[1:]
+
+
+class CheckEncryptedTest(unittest.TestCase):
+    """records.check on an encrypted record (record-history-bundle/v3): the
+    mirror of the TypeScript spec's "check from code on an encrypted record"
+    as far as Python reads. Python opens every entry with the record's key
+    and checks it against its sealed record hash and, for a record hash v3
+    history, its seal. It checks no bundle digest, no layout word, no Merkle
+    path and no public source; those are the TypeScript SDK's and the
+    checker's."""
+
+    def test_checks_a_history_as_history_returned_it_every_entry_opened_and_the_fingerprints_held(self) -> None:
+        api, bundle, a = with_fixture()
+        history = a.records.history(None, wire_record_id=bundle["entityId"])
+        api.requests.clear()
+        checked = a.records.check(history)
+        self.assertEqual(outcome(checked), (True, None, None))
+        self.assertIs(checked["sourceChecked"], False)
+        self.assertIsNone(checked["note"])
+        self.assertEqual(
+            [(e["entry"], e["status"], e["kind"]) for e in checked["entries"]],
+            [(1, "committed", "transition"), (2, "committed", "transition"), (3, "committed", "transition"), (4, "committed", "attempt")],
+        )
+
+        first = history["opened"][0]
+        held = a.records.check(history, expect=[{"entry": first["entry"], "payloads": first["content"]["payloads"]}])
+        self.assertEqual(outcome(held), (True, None, None))
+        self.assertIs(row_of(held, first["entry"])["expected"], True)
+
+        other = a.records.check(history, expect=[{"entry": first["entry"], "payloads": [OTHER_REF]}])
+        self.assertEqual(outcome(other), (False, "semantic", NOT_HELD))
+        self.assertIs(row_of(other, first["entry"])["expected"], False)
+        # With the workspace secret the check runs in this process: nothing is requested.
+        self.assertEqual(api.requests, [])
+
+    def test_checks_the_history_as_it_was_served_with_no_opened_list(self) -> None:
+        _, bundle, a = with_fixture()
+        self.assertNotIn("opened", bundle)
+        before = copy.deepcopy(bundle)
+        self.assertEqual(outcome(a.records.check(bundle)), (True, None, None))
+        self.assertEqual(bundle, before)
+
+    def test_reads_the_fingerprints_from_what_it_opened_never_from_the_opened_list_it_was_passed(self) -> None:
+        _, bundle, a = with_fixture()
+        history = a.records.history(None, wire_record_id=bundle["entityId"])
+        first, rest = history["opened"][0], history["opened"][1:]
+        dressed = {**history, "opened": [{**first, "content": {**first["content"], "payloads": [OTHER_REF]}}, *rest]}
+        checked = a.records.check(dressed, expect=[{"entry": first["entry"], "payloads": [OTHER_REF]}])
+        self.assertEqual(outcome(checked), (False, "semantic", NOT_HELD))
+        self.assertIs(row_of(checked, first["entry"])["expected"], False)
+        # The fingerprint the entry does hold is still found, whatever the passed list says.
+        held = a.records.check(dressed, expect=[{"entry": first["entry"], "payloads": first["content"]["payloads"]}])
+        self.assertIs(row_of(held, first["entry"])["expected"], True)
+        # An attempt row has no content opened here, so a fingerprint expected of it is not held.
+        attempt = a.records.check({**history, "opened": [*history["opened"], {"entry": 4, "content": {"payloads": [OTHER_REF]}}]}, expect=[{"entry": 4, "payloads": [OTHER_REF]}])
+        self.assertIs(row_of(attempt, 4)["expected"], False)
+
+        # The passed list, and the SDK's nextFromSeq, never reach the opener.
+        enc = a.records._encrypted()
+        opener, given = enc.try_open_history, []
+
+        def watched(body: Dict[str, Any], *args: Any, **kwargs: Any) -> Any:
+            given.append(body)
+            return opener(body, *args, **kwargs)
+
+        enc.try_open_history = watched
+        self.assertTrue(a.records.check({**dressed, "nextFromSeq": 4})["ok"])
+        self.assertEqual(len(given), 1)
+        self.assertEqual(list(given[0]), list(bundle))
+        self.assertEqual(given[0], bundle)
+
+    def test_names_the_entry_that_did_not_open_and_refuses_a_changed_envelope_hash_or_reference(self) -> None:
+        _, bundle, a = with_fixture()
+        changed = copy.deepcopy(bundle)
+        envelope = next(r for r in changed["receipts"] if r["seq"] == 1)["envelopes"][0]
+        envelope["ct"] = changed_ct(envelope["ct"])
+        # With the digest left as it was, the file is reported as changed.
+        self.assertEqual(outcome(a.records.check(changed)), (False, "schema", "Bundle digest does not match the bundle contents."))
+        # With a digest that covers the change, it shows where the entry is opened.
+        changed["bundleDigest"] = bundle_digest(changed)
+        hidden = a.records.check(changed, expect=[{"entry": 1, "payloads": []}])
+        self.assertEqual(outcome(hidden), (False, "semantic", unopened(2)))
+        self.assertEqual([e["entry"] for e in hidden["entries"]], [1, 2, 3, 4])
+        self.assertTrue(all(e["kind"] is None for e in hidden["entries"]))
+
+        other_hash = copy.deepcopy(bundle)
+        other_hash["receipts"][0]["recordHash"] = "0x" + "00" * 32
+        other_hash["bundleDigest"] = bundle_digest(other_hash)
+        self.assertEqual(
+            outcome(a.records.check(other_hash)),
+            (False, "semantic", "Entry 1 opened, but its content doesn't match its sealed record hash."),
+        )
+
+        other_reference = copy.deepcopy(bundle)
+        other_reference["receipts"][1]["amends"]["seq"] = 2
+        other_reference["bundleDigest"] = bundle_digest(other_reference)
+        self.assertEqual(
+            outcome(a.records.check(other_reference)),
+            (False, "semantic", "Entry 2 opened, but the entries it amends or references don't match the ones stored with it."),
+        )
+
+        refused_envelope = copy.deepcopy(bundle)
+        refused_envelope["refused"][0]["envelope"]["ct"] = changed_ct(refused_envelope["refused"][0]["envelope"]["ct"])
+        refused_envelope["bundleDigest"] = bundle_digest(refused_envelope)
+        self.assertEqual(outcome(a.records.check(refused_envelope)), (False, "semantic", unopened(4)))
+
+    def test_a_history_not_in_the_form_is_refused_at_the_form(self) -> None:
+        _, bundle, a = with_fixture()
+        other_form = copy.deepcopy(bundle)
+        other_form["receipts"][2]["schema"] = "semantic-receipt/v9"
+        other_form["bundleDigest"] = bundle_digest(other_form)
+        named = a.records.check(other_form, expect=[{"entry": 3, "payloads": []}])
+        self.assertEqual(outcome(named), (False, "schema", unopened(3)))
+        self.assertTrue(all(e["kind"] is None for e in named["entries"]))
+
+        no_refused_list = {k: v for k, v in bundle.items() if k != "refused"}
+        self.assertEqual(outcome(a.records.check(no_refused_list)), (False, "schema", "RECORD_HISTORY_RECEIPT_FORM"))
+
+        # A history that names no record: no key can be made for it, so the check does not finish.
+        no_record = {k: v for k, v in bundle.items() if k != "entityId"}
+        self.assertEqual(outcome(a.records.check(no_record)), (False, "schema", DID_NOT_FINISH + "RECORDS_KEY_INVALID"))
+
+        # The status list is outside what was opened: an entry it calls committed with no receipt here is not one.
+        no_receipts = {**bundle, "receipts": [], "refused": []}
+        no_receipts["bundleDigest"] = bundle_digest(no_receipts)
+        self.assertEqual(outcome(a.records.check(no_receipts)), (False, "schema", "No committed entries."))
+
+    def test_confirms_nothing_without_the_key_no_workspace_secret_or_one_that_does_not_hold_the_version(self) -> None:
+        api, bundle, _ = with_fixture()
+        none = client(api, KEY_A).records.check(bundle, expect=[{"entry": 1, "payloads": [OTHER_REF]}])
+        self.assertEqual(outcome(none), (False, "schema", DID_NOT_FINISH + RECORDS_ENCRYPTION_WORDS["RECORDS_SECRET_REQUIRED"]))
+        self.assertIs(row_of(none, 1)["expected"], False)
+        self.assertTrue(all(e["kind"] is None for e in none["entries"]))
+
+        other = client(api, KEY_A, generate_workspace_secret()).records.check(bundle)
+        self.assertEqual(
+            outcome(other),
+            (False, "schema", DID_NOT_FINISH + "This record is under version 1, which this workspace secret doesn't hold."),
+        )
+
+    def test_checks_a_record_hash_v3_record_with_its_record_key_and_not_with_a_key_for_another_record(self) -> None:
+        case = format2_case("HB3-01")
+        bundle = case["input"]["bundle"]
+        api = setup()
+        a = client(api, KEY_A)
+        record_key = R.b64url_encode(bytes.fromhex(case["input"]["recordKey"]))
+        wanted = next(o for o in case["expected"]["opened"] if not o.get("plaintext"))
+        checked = a.records.check(
+            copy.deepcopy(bundle), record_key=record_key, expect=[{"entry": wanted["seq"] + 1, "payloads": wanted["content"]["payloads"]}]
+        )
+        self.assertEqual(outcome(checked), (True, None, None))
+        self.assertIs(row_of(checked, wanted["seq"] + 1)["expected"], True)
+        self.assertEqual(
+            [e["kind"] for e in checked["entries"]],
+            ["attempt" if r["schema"] == "semantic-receipt/v6" else "transition" for r in bundle["receipts"]],
+        )
+        self.assertIn("attempt", [e["kind"] for e in checked["entries"]])
+
+        wrong = a.records.check(copy.deepcopy(bundle), record_key=R.b64url_encode(b"\x5a" * 32))
+        self.assertEqual(outcome(wrong), (False, "semantic", unopened(1)))
+
+        not_a_key = a.records.check(copy.deepcopy(bundle), record_key="not a record key")
+        self.assertEqual(outcome(not_a_key), (False, "schema", DID_NOT_FINISH + unopened(1)))
+        self.assertEqual(api.requests, [])
+
+    def test_a_record_hash_v3_history_whose_seals_do_not_reproduce_does_not_pass(self) -> None:
+        case = format2_case("HB3-02")
+        self.assertEqual((case["expected"]["ok"], case["expected"]["verified"]), (True, False))
+        a = client(setup(), KEY_A)
+        record_key = R.b64url_encode(bytes.fromhex(case["input"]["recordKey"]))
+        wanted = next(o for o in case["expected"]["opened"] if not o.get("plaintext"))
+        checked = a.records.check(
+            copy.deepcopy(case["input"]["bundle"]), record_key=record_key, expect=[{"entry": wanted["seq"] + 1, "payloads": wanted["content"]["payloads"]}]
+        )
+        self.assertEqual(outcome(checked), (False, "semantic", "The sealed record does not recompute to the seal tag carried by the word."))
+        self.assertEqual(len(checked["entries"]), len(case["input"]["bundle"]["receipts"]))
+        self.assertTrue(all(e["kind"] is None for e in checked["entries"]))
+        # The entry opens, but its seal is not the one its word carries: a fingerprint in it is not confirmed.
+        self.assertIs(row_of(checked, wanted["seq"] + 1)["expected"], False)
+
+    def test_checks_a_history_read_with_a_grant_and_the_record_key_with_a_grant_wrapped_to_this_workspace_and_as_a_holder(self) -> None:
+        api, bundle, a = with_fixture()
+        wire = bundle["entityId"]
+        rk = a.records.record_key(wire_record_id=wire)
+        bearer = a.records.grants.create(wire_record_id=wire, kind="BEARER")
+        reader = client(api, KEY_C)
+        by_key = reader.records.history(None, wire_record_id=wire, grant=bearer["grant"], record_key=rk)
+        self.assertEqual(outcome(reader.records.check(by_key, record_key=rk)), (True, None, None))
+
+        c = client(api, KEY_C, generate_workspace_secret())
+        code = c.records.identity.register()["code"]
+        bound = a.records.grants.create(wire_record_id=wire, kind="TENANT_BOUND", counterparty_workspace_id="cfixtureworkspacec0000001", confirmed_code=code)
+        by_grant = c.records.history(None, wire_record_id=wire, grant=bound["grant"], owner=OWNER)
+        self.assertEqual(outcome(c.records.check(by_grant, grant=bound["grant"], owner=OWNER)), (True, None, None))
+        no_owner = c.records.check(by_grant, grant=bound["grant"])
+        self.assertEqual(outcome(no_owner), (False, "schema", DID_NOT_FINISH + RECORDS_ENCRYPTION_WORDS["RECORDS_OWNER_INVALID"]))
+        own_secret_only = c.records.check(by_grant)
+        self.assertEqual((own_secret_only["ok"], own_secret_only["failedCheck"]), (False, "schema"))
+        self.assertTrue(own_secret_only["reason"].startswith(DID_NOT_FINISH + "This record is under version "))
+
+        b = client(api, KEY_B, generate_workspace_secret())
+        a.records.holders.add(workspace_id="cfixtureworkspaceb0000001", confirmed_code=b.records.identity.register()["code"], required=True)
+        b.records.holdings.confirm()
+        as_holder = b.records.history(None, wire_record_id=wire, holder_for=OWNER)
+        self.assertEqual(outcome(b.records.check(as_holder, holder_for=OWNER)), (True, None, None))
+
+    def test_reads_no_public_source_and_says_where_that_check_is(self) -> None:
+        api, bundle, a = with_fixture()
+        api.requests.clear()
+        checked = a.records.check(bundle, source={"kind": "mirror", "url": "https://mirror.test"})
+        self.assertEqual(outcome(checked), (True, None, None))
+        self.assertIs(checked["sourceChecked"], False)
+        self.assertEqual(checked["note"], "Check from code is available in TypeScript today.")
+        self.assertEqual(api.requests, [])
+
+    def test_a_plaintext_history_is_checked_as_before_whatever_read_options_are_passed(self) -> None:
+        api = setup()
+        a = client(api, KEY_A)
+        ref = {"alg": "sha-256", "digest": "a" * 64, "byteLength": "1"}
+        history = {
+            "schema": "record-history-bundle/v1",
+            "receipts": [{"seq": 0, "status": "committed", "recordContent": {"payloads": [ref]}}],
+            "opened": [{"entry": 1, "content": {"payloads": [OTHER_REF]}}],
+        }
+        plain = a.records.check(history, expect=[{"entry": 1, "payloads": [ref]}])
+        self.assertEqual(outcome(plain), (True, None, None))
+        with_options = a.records.check(history, expect=[{"entry": 1, "payloads": [ref]}], grant="rgt_test_1", owner=OWNER, holder_for=OWNER, record_key="A" * 43)
+        self.assertEqual(with_options, plain)
+        unknown = a.records.check({"schema": "record-history-bundle/v4", "receipts": []}, record_key="A" * 43)
+        self.assertEqual((*outcome(unknown), unknown["entries"]), (False, "schema", "Not a record-history-bundle/v1.", []))
+        self.assertEqual(api.requests, [])
+
+    def test_keeps_a_copy_that_carries_only_what_its_digest_covers_and_still_checks(self) -> None:
+        api = setup()
+        bundle = door_proof_bundle()
+        self.assertGreater(len(bundle["entries"]), 0)
+        self.assertTrue(all("status" in r for r in bundle["receipts"]))
+        # Every value the API may serve beside the history; the digest covers none of them.
+        served = copy.deepcopy(bundle)
+        served["pendingEntries"] = [{"seq": None, "status": "queued"}]
+        served["nextFromSeq"] = 4
+        served["receipts"][0].update({"code": "RECORD_GENESIS_MISMATCH", "sentence": "A record opens with recorded; amended and closed come after it."})
+        api.serve_history(OWNER, served)
+        a = client(api, KEY_A, VECTOR_KEYRING_V1)
+        a.records.identity.register()
+
+        kept = json.loads(a.records.keep_copy(wire_record_id=bundle["entityId"])["bytes"].decode("utf-8"))
+        self.assertEqual(list(kept), ["schema", "recordKey", "history"])
+        history = kept["history"]
+        for key in ("entries", "pendingEntries", "nextFromSeq"):
+            self.assertNotIn(key, history)
+        for receipt in history["receipts"]:
+            for key in ("status", "code", "sentence"):
+                self.assertNotIn(key, receipt)
+        self.assertEqual(history["bundleDigest"], bundle["bundleDigest"])
+        self.assertEqual(bundle_digest(history), bundle["bundleDigest"])
+        # Nothing in the copy's history is outside its digest but the digest itself.
+        self.assertEqual({k: v for k, v in history.items() if k != "bundleDigest"}, R.digestable_history_bundle(history))
+        # What stays is as it was served, in the order it was served, with the digest last.
+        left_out = ("bundleDigest", "entries", "pendingEntries", "nextFromSeq")
+        self.assertEqual(list(history), [k for k in served if k not in left_out] + ["bundleDigest"])
+        for got, sent in zip(history["receipts"], served["receipts"]):
+            self.assertEqual(list(got.items()), [(k, v) for k, v in sent.items() if k not in ("status", "code", "sentence")])
+        self.assertEqual(history["refused"], served["refused"])
+
+        opened = R.open_record_copy_v1(AEAD, kept)
+        self.assertTrue(opened["ok"])
+        self.assertEqual(len([e for e in opened["opened"] if "content" in e]), 3)
+        self.assertEqual(outcome(a.records.check(history)), (True, None, None))
+        # A reader with no workspace checks the copy's history with the copy's own key.
+        reader = client(api, KEY_C)
+        checked = reader.records.check(history, record_key=kept["recordKey"])
+        self.assertEqual(outcome(checked), (True, None, None))
+        self.assertEqual([e["kind"] for e in checked["entries"]], ["transition", "transition", "transition", "attempt"])
+
+    def test_what_a_digest_covers_leaves_out_the_status_list_and_each_receipts_status(self) -> None:
+        bundle = {
+            "schema": "record-history-bundle/v3",
+            "receipts": [{"seq": 0, "status": "committed", "code": "C", "sentence": "S", "newWord": "0x01"}, "not a receipt"],
+            "bundleDigest": "0xab",
+            "entries": [{"seq": 0, "status": "committed"}],
+            "pendingEntries": [],
+            "refused": [],
+            "nextFromSeq": 3,
+        }
+        before = copy.deepcopy(bundle)
+        covered = R.digestable_history_bundle(bundle)
+        self.assertEqual(list(covered.items()), [("schema", "record-history-bundle/v3"), ("receipts", [{"seq": 0, "newWord": "0x01"}, "not a receipt"]), ("refused", [])])
+        self.assertEqual(bundle, before)
+        self.assertEqual(R.digestable_history_bundle({"schema": "record-history-bundle/v3"}), {"schema": "record-history-bundle/v3", "receipts": []})
+
+    def test_the_tests_digest_is_typescripts_on_every_history_in_the_shared_vectors(self) -> None:
+        histories = vector_histories()
+        self.assertGreaterEqual(len(histories), 20)
+        changed = []
+        for case_id, history, code in histories:
+            with self.subTest(case=case_id):
+                if code == "RECORD_HISTORY_DIGEST":
+                    changed.append(case_id)
+                    self.assertNotEqual(bundle_digest(history), history["bundleDigest"])
+                else:
+                    self.assertEqual(bundle_digest(history), history["bundleDigest"])
+        self.assertEqual(changed, ["HB-04", "CF-05"])
+        door = door_proof_bundle()
+        self.assertEqual(bundle_digest(door), door["bundleDigest"])
+
+
+if __name__ == "__main__":
+    unittest.main()

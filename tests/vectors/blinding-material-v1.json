@@ -1,0 +1,729 @@
+{
+  "schema": "blinding-material-v1-vectors/1",
+  "generatedBy": "scripts/records/generate-slot-encoding-vectors.mjs",
+  "source": "packages/shared/src/proof/__vectors__/slot-encoding-v1.json",
+  "caseCount": 28,
+  "cases": [
+    {
+      "id": "bm-b1-whole-file",
+      "kind": "blinding-material-reject",
+      "title": "a whole blinding file in payloads",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "schema": "pacspace-blinding/v1",
+              "alg": "hmac-sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b1-missing-bytelength",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file without byteLength",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "schema": "pacspace-blinding/v1",
+              "alg": "hmac-sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b1-missing-alg",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file without alg",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "schema": "pacspace-blinding/v1",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b3-missing-schema",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file without schema",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "hmac-sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B3"
+      }
+    },
+    {
+      "id": "bm-b1-alg-sha256",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file whose alg was changed to sha-256",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "schema": "pacspace-blinding/v1",
+              "alg": "sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b1-nested-in-sha256-ref",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file nested as an extra field of a sha-256 reference",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048",
+              "blinding": {
+                "schema": "pacspace-blinding/v1",
+                "alg": "hmac-sha-256",
+                "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b2-pair-file",
+      "kind": "blinding-material-reject",
+      "title": "a { ref, blinding } pair holding a file",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": {
+                "schema": "pacspace-blinding/v1",
+                "alg": "hmac-sha-256",
+                "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-b2-pair-hex",
+      "kind": "blinding-material-reject",
+      "title": "a { ref, blinding } pair holding a hex string",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-b2-pair-object",
+      "kind": "blinding-material-reject",
+      "title": "a { ref, blinding } pair holding an object",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": {
+                "kept": true
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-b1-whole-file-deep",
+      "kind": "blinding-material-reject",
+      "title": "a whole blinding file in payloads, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "schema": "pacspace-blinding/v1",
+              "alg": "hmac-sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b1-missing-bytelength-deep",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file without byteLength, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "schema": "pacspace-blinding/v1",
+              "alg": "hmac-sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b1-missing-alg-deep",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file without alg, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "schema": "pacspace-blinding/v1",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b3-missing-schema-deep",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file without schema, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "alg": "hmac-sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B3"
+      }
+    },
+    {
+      "id": "bm-b1-alg-sha256-deep",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file whose alg was changed to sha-256, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "schema": "pacspace-blinding/v1",
+              "alg": "sha-256",
+              "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b1-nested-in-sha256-ref-deep",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file nested as an extra field of a sha-256 reference, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048",
+              "blinding": {
+                "schema": "pacspace-blinding/v1",
+                "alg": "hmac-sha-256",
+                "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b2-pair-file-deep",
+      "kind": "blinding-material-reject",
+      "title": "a { ref, blinding } pair holding a file, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": {
+                "schema": "pacspace-blinding/v1",
+                "alg": "hmac-sha-256",
+                "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-b2-pair-hex-deep",
+      "kind": "blinding-material-reject",
+      "title": "a { ref, blinding } pair holding a hex string, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-b2-pair-object-deep",
+      "kind": "blinding-material-reject",
+      "title": "a { ref, blinding } pair holding an object, two levels deep",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "detail": {
+            "nested": {
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": {
+                "kept": true
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-guard-hmac-ref",
+      "kind": "blinding-material-reject",
+      "title": "guard: a blinded reference alone is accepted",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "hmac-sha-256",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": true
+      }
+    },
+    {
+      "id": "bm-guard-sha256-extra-field",
+      "kind": "blinding-material-reject",
+      "title": "guard: a sha-256 reference with an ordinary extra field is accepted, as before",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048",
+              "note": "weights, build 14"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": true
+      }
+    },
+    {
+      "id": "bm-guard-sha256-leading-zero",
+      "kind": "blinding-material-reject",
+      "title": "guard: a sha-256 reference keeps accepting \"007\", as before",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "007"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": true
+      }
+    },
+    {
+      "id": "bm-guard-sha256-extra-holds-invalid-ref",
+      "kind": "blinding-material-reject",
+      "title": "guard: a reference inside a sha-256 reference's extra field is not validated, as before",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048",
+              "parts": [
+                {
+                  "alg": "md5",
+                  "digest": "x",
+                  "byteLength": "1"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": true
+      }
+    },
+    {
+      "id": "bm-b1-in-digest-of-nested-ref",
+      "kind": "blinding-material-reject",
+      "title": "a blinding file in the digest of a reference-shaped object inside a sha-256 reference's extra field",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048",
+              "note": {
+                "alg": "sha-256",
+                "digest": {
+                  "schema": "pacspace-blinding/v1",
+                  "alg": "hmac-sha-256",
+                  "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "byteLength": "2048"
+                },
+                "byteLength": "1"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B1"
+      }
+    },
+    {
+      "id": "bm-b2-before-b3",
+      "kind": "blinding-material-reject",
+      "title": "an hmac-sha-256 object with extra fields that also holds a { ref, blinding } pair is refused by B2 first",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "hmac-sha-256",
+              "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "byteLength": "2048",
+              "ref": {
+                "alg": "hmac-sha-256",
+                "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byteLength": "2048"
+              },
+              "blinding": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B2"
+      }
+    },
+    {
+      "id": "bm-outside-ref-alg-with-keyid",
+      "kind": "blinding-material-reject",
+      "title": "refused, accepted before: an hmac-sha-256 object with another field, outside a reference",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "signing": {
+            "alg": "hmac-sha-256",
+            "keyId": "k1"
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B3"
+      }
+    },
+    {
+      "id": "bm-outside-ref-alg-alone",
+      "kind": "blinding-material-reject",
+      "title": "refused, accepted before: an object holding only alg hmac-sha-256, outside a reference",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "signing": {
+            "alg": "hmac-sha-256"
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_CONTENT_INVALID"
+      }
+    },
+    {
+      "id": "bm-outside-ref-in-sha256-extra",
+      "kind": "blinding-material-reject",
+      "title": "refused, accepted before: an hmac-sha-256 object with another field, in a sha-256 reference's extra field",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048",
+              "sig": {
+                "alg": "hmac-sha-256",
+                "note": "x"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_BLINDING_INCLUDED",
+        "rule": "B3"
+      }
+    },
+    {
+      "id": "bm-outside-ref-pair-blinding-null",
+      "kind": "blinding-material-reject",
+      "title": "refused, accepted before: a { ref, blinding: null } pair whose ref holds only alg hmac-sha-256",
+      "input": {
+        "content": {
+          "payloads": [
+            {
+              "alg": "sha-256",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "byteLength": "2048"
+            }
+          ],
+          "x": {
+            "ref": {
+              "alg": "hmac-sha-256"
+            },
+            "blinding": null
+          }
+        }
+      },
+      "expected": {
+        "errorCode": "RECORD_CONTENT_INVALID"
+      }
+    }
+  ]
+}
