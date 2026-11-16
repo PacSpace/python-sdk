@@ -186,8 +186,16 @@ class DigestTest(unittest.TestCase):
         deep: Any = 0
         for _ in range(5000):
             deep = [deep]
-        for extra in (float("nan"), float("inf"), 1e400, deep, {1: "a member name that is not a string"}):
-            with self.subTest(extra=repr(extra)[:20]):
+        # Each case is named: repr() of the nested value itself raises RecursionError on Python 3.10 and 3.11.
+        cases = (
+            ("nan", float("nan")),
+            ("inf", float("inf")),
+            ("1e400", 1e400),
+            ("nested 5000 deep", deep),
+            ("a member name that is not a string", {1: "a member name that is not a string"}),
+        )
+        for name, extra in cases:
+            with self.subTest(extra=name):
                 bundle = door_proof_bundle()
                 bundle["extra"] = extra
                 self.assertEqual(code_of(R.open_record_history_v3(AEAD, bundle, key_of(bundle))), "RECORD_HISTORY_DIGEST")
